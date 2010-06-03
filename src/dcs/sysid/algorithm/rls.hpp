@@ -71,19 +71,21 @@ void rls_arx_siso_init(UIntT n_a, UIntT n_b, UIntT d, VectorT& theta0_hat, Matri
 	typedef typename ::dcs::math::la::matrix_traits<MatrixT>::value_type value_type;
 	typedef typename ::dcs::math::la::vector_traits<VectorT>::size_type size_type;
 
-	UIntT n1 = n_a+n_b+1;
-	UIntT n2 = n_a+n_b+1+d;
+	//UIntT n1 = n_a+n_b+1;
+	//UIntT n2 = n_a+n_b+1+d;
+	UIntT n = n_a+n_b+1+d;
 
 	theta0_hat = VectorT(
-						//::dcs::math::la::size(theta0_hat),
-						n1,
+						//n1,
+						n,
 						//real_type(2.2204e-16)
-						value_type(2.2204e-16)
+						value_type(2.22045e-16)
+						//::std::numeric_limits<value_type>::min() // alternative initialization
 	);
-	//P0 = 10000*::dcs::math::la::identity_matrix<value_type>(::dcs::math::la::num_rows(P0));
-	P0 = 10000*::dcs::math::la::identity_matrix<value_type>(n2);
-	//phi0 = ::dcs::math::la::dense_vector<real_type>(::dcs::math::la::size(phi0), ::std::numeric_limits<real_type>::epsilon());
-	phi0 = VectorT(n2, 0);
+	//P0 = 10000*::dcs::math::la::identity_matrix<value_type>(n2);
+	P0 = 10000*::dcs::math::la::identity_matrix<value_type>(n);
+	//phi0 = VectorT(n2, 0);
+	phi0 = VectorT(n, 0);
 }
 
 
@@ -168,9 +170,11 @@ RealT rls_ff_arx_siso(RealT y, RealT u, RealT lambda, UIntT n_a, UIntT n_b, UInt
 	//           &= [-y(k+1), \phi_1(k+1), \phi_2(k+1), \ldots, \phi_{n_a-1}(k+1), u(k+1), \ldots, \phi_(k+1)]
 	VectorT phi_new(n, 0);
 	phi_new(0) = -y;
+	//::dcs::math::la::subrange(phi_new, 1, n_a) = ::dcs::math::la::subrange(phi, 0, n_a-1);
 	::dcs::math::la::subrange(phi_new, 1, n_a) = ::dcs::math::la::subrange(phi, 0, n_a-1);
 	phi_new(n_a) = u;
-	::dcs::math::la::subrange(phi_new, n_a+1, n_a+n_b) = ::dcs::math::la::subrange(phi, n_a, n_a+n_b-1);
+	//::dcs::math::la::subrange(phi_new, n_a+1, n_a+n_b) = ::dcs::math::la::subrange(phi, n_a, n_a+n_b-1);
+	::dcs::math::la::subrange(phi_new, n_a+1, n_a+n_b+1) = ::dcs::math::la::subrange(phi, n_a, n_a+n_b);
 	phi = phi_new;
 
 	return y_hat;
@@ -204,23 +208,21 @@ void rls_arx_mimo_init(UIntT n_a, UIntT n_b, UIntT d, UIntT n_y, UIntT n_u, Matr
 	typedef typename ::dcs::math::la::matrix_traits<MatrixT>::value_type value_type;
 	typedef typename ::dcs::math::la::vector_traits<VectorT>::size_type size_type;
 
-	//UIntT n1 = n_a+n_b+1-d;
-	//UIntT n2 = n_a+n_b;
-	size_type n1 = n_a*n_y+(n_b+1)*n_u;
-	size_type n2 = n_a*n_y+(n_b+1)*n_u+d;
+	//size_type n1 = n_a*n_y+(n_b+1)*n_u;
+	//size_type n2 = n_a*n_y+(n_b+1)*n_u+d;
+	size_type n = n_a*n_y+(n_b+1)*n_u+d;
 
 	theta0_hat = MatrixT(
-						//::dcs::math::la::num_rows(theta0_hat),
 						n_y,
-						//::dcs::math::la::num_columns(theta0_hat),
-						n1,
-						value_type(2.2204e-16)
+						//n1,
+						n,
+						value_type(2.22045e-16)
+						//::std::numeric_limits<value_type>::min() // alternative initialization
 	);
-	//P0 = 10000*::dcs::math::la::identity_matrix<value_type>(::dcs::math::la::num_rows(P0));
-	P0 = 10000*::dcs::math::la::identity_matrix<value_type>(n1);
-	////phi0 = ::dcs::math::la::dense_vector<real_type>(::dcs::math::la::size(phi0), ::std::numeric_limits<real_type>::epsilon());
-	//phi0 = VectorT(::dcs::math::la::size(phi0), 0);
-	phi0 = VectorT(n2, 0);
+	//P0 = 10000*::dcs::math::la::identity_matrix<value_type>(n2);
+	P0 = 10000*::dcs::math::la::identity_matrix<value_type>(n);
+	//phi0 = VectorT(n2, 0);
+	phi0 = VectorT(n, 0);
 }
 
 
@@ -251,9 +253,10 @@ template <
 	typename VectorT,
 	typename MatrixT
 >
-void rls_ff_arx_mimo(VectorT y, VectorT u, RealT lambda, UIntT n_a, UIntT n_b, UIntT d, MatrixT& theta_hat, MatrixT& P, VectorT& phi)
+VectorT rls_ff_arx_mimo(VectorT y, VectorT u, RealT lambda, UIntT n_a, UIntT n_b, UIntT d, MatrixT& theta_hat, MatrixT& P, VectorT& phi)
 {
 	typedef RealT real_type;
+	typedef VectorT vector_type;
 	typedef typename ::dcs::math::la::vector_traits<VectorT>::size_type size_type;
 
 	size_type n = ::dcs::math::la::size(phi);
@@ -262,7 +265,7 @@ void rls_ff_arx_mimo(VectorT y, VectorT u, RealT lambda, UIntT n_a, UIntT n_b, U
 
 	// preconditions
 	DCS_ASSERT(
-		n == (n_a*n_y+n_b*n_u),
+		n == (n_a*n_y+(n_b+1)*n_u+d),
 		throw ::std::logic_error("The size of the regression vector must be equal to the sum of the orders of the ARX model.")
 	);
 	DCS_ASSERT(
@@ -296,33 +299,22 @@ void rls_ff_arx_mimo(VectorT y, VectorT u, RealT lambda, UIntT n_a, UIntT n_b, U
 		)
 		/ lambda;
 
+	// Compute output estimate
+	vector_type y_hat = ::dcs::math::la::prod(theta_hat, phi);
+
 	// Update parameters estimate
 	// \hat{\theta}(k+1) = \hat{\theta}(k)+(y(k+1)-\Phi^T(k+1)\hat{\theta}(k))L^T(k+1)
-	theta_hat = theta_hat
-				+ 
-					::dcs::math::la::outer_prod(
-						y
-						- ::dcs::math::la::prod(
-							theta_hat,
-							phi
-						),
-						L
-	);
+	theta_hat = theta_hat + ::dcs::math::la::outer_prod(y - y_hat, L);
 
 	// Update the Regression vector
-	// \phi(t) &= [-y(t-1) -y(t-2) ... -y(t-n_a) u(t-1) u(t-2) ... u(t-n_b)]^T
-	// \phi(t+1) &= [-y(t) -y(t-1) ... -y(t-n_a+1) u(t) u(t-1) ... u(t-n_b+1)]^T
-	//          &= [-y(t) \phi(t,1) ... \phi(t,n_a-1) u(t) \phi(t,n_a+1) ... \phi(t,n_a+n_b-1)]
-	// \phi(k+2) &= [-y(k+1), -y(k), y(k-1), \ldots, -y(k-n_a+2), u(k+1), \ldots, u(k-n_b+2)]
-	//           &= [-y(k+1), \phi_1(k+1), \phi_2(k+1), \ldots, \phi_{n_a-1}(k+1), u(k+1), \ldots, \phi_(k+1)]
 	VectorT phi_new(n, 0);
-	//::dcs::math::la::subrange(phi_new, 0, n_y-1) = -y;
-	::dcs::math::la::subrange(phi_new, 0, n_y-1) = ::dcs::math::la::subrange(-y, 0, n_y-1);
-	::dcs::math::la::subrange(phi_new, n_y, n_y*n_a-1) = ::dcs::math::la::subrange(phi, 0, n_y*(n_a-1)-1);
-	//::dcs::math::la::subrange(phi_new, n_y*(n_a-1), n_y*n_a+n_u) = u;
-	::dcs::math::la::subrange(phi_new, n_y*n_a, n_y*n_a+n_u-1) = ::dcs::math::la::subrange(u, 0, n_u-1);
-	::dcs::math::la::subrange(phi_new, n_y*n_a+n_u, n_y*n_a+n_u*n_b-1) = ::dcs::math::la::subrange(phi, n_y*n_a, n_y*n_a+n_u*(n_b-1)-1);
+	::dcs::math::la::subrange(phi_new, 0, n_y) = ::dcs::math::la::subrange(-y, 0, n_y);
+	::dcs::math::la::subrange(phi_new, n_y, n_y*n_a) = ::dcs::math::la::subrange(phi, 0, n_y*(n_a-1));
+	::dcs::math::la::subrange(phi_new, n_y*n_a, n_y*n_a+n_u) = ::dcs::math::la::subrange(u, 0, n_u);
+	::dcs::math::la::subrange(phi_new, n_y*n_a+n_u, n_y*n_a+n_u*(n_b+1)) = ::dcs::math::la::subrange(phi, n_y*n_a, n_y*n_a+n_u*n_b);
 	phi = phi_new;
+
+	return y_hat;
 }
 
 
