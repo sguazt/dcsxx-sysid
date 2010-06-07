@@ -17,6 +17,8 @@
 
 DCS_TEST_DEF( test_rarx_siso_without_noise )
 {
+	DCS_DEBUG_TRACE("Test Case: SISO system with ARX structure and without noise");
+
 	typedef double real_type;
 	typedef ::std::size_t size_type;
 	typedef ::std::size_t uint_type;
@@ -112,6 +114,8 @@ DCS_TEST_DEF( test_rarx_siso_without_noise )
 
 DCS_TEST_DEF( test_rarx_siso_with_noise )
 {
+	DCS_DEBUG_TRACE("Test Case: SISO system with ARX structure and with noise");
+
 	typedef double real_type;
 	typedef ::std::size_t size_type;
 	typedef ::std::size_t uint_type;
@@ -225,6 +229,8 @@ DCS_TEST_DEF( test_rarx_siso_with_noise )
 
 DCS_TEST_DEF( test_rarx_mimo_without_noise )
 {
+	DCS_DEBUG_TRACE("Test Case: MIMO system with ARX structure and without noise");
+
 	typedef double real_type;
 	typedef ::std::size_t size_type;
 	typedef ::dcs::math::la::dense_matrix<real_type> matrix_type;
@@ -377,6 +383,8 @@ DCS_TEST_DEF( test_rarx_mimo_without_noise )
 
 DCS_TEST_DEF( test_rarx_mimo_with_noise )
 {
+	DCS_DEBUG_TRACE("Test Case: MIMO system with ARX structure and with noise");
+
 	typedef double real_type;
 	typedef ::std::size_t size_type;
 	typedef ::dcs::math::la::dense_matrix<real_type> matrix_type;
