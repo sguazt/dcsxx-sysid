@@ -77,7 +77,7 @@ DCS_TEST_DEF( test_sim_siso_without_noise )
 		std::cout << ">>" << i << " --> y_ok: " << y_ok(i) << std::endl;
 		std::cout << "----------------------------------------" << i << std::endl;
 
-		DCS_TEST_CHECK_REL_PRECISION(y(i), y_ok(i), 1.0e-5);
+		DCS_TEST_CHECK_REL_CLOSE(y(i), y_ok(i), 1.0e-5);
 	}
 }
 
@@ -163,7 +163,7 @@ DCS_TEST_DEF( test_sim_siso_with_noise )
 		std::cout << ">>" << i << " --> y_ok: " << y_ok(i) << std::endl;
 		std::cout << "----------------------------------------" << i << std::endl;
 
-		DCS_TEST_CHECK_REL_PRECISION(y(i), y_ok(i), 1.0e-5);
+		DCS_TEST_CHECK_REL_CLOSE(y(i), y_ok(i), 1.0e-5);
 	}
 }
 
@@ -296,7 +296,7 @@ DCS_TEST_DEF( test_sim_mimo_without_noise )
 
 		for (size_type j = 0; j < n_y; ++j)
 		{
-			DCS_TEST_CHECK_REL_PRECISION(Y(i,j), Y_ok(i,j), 1.0e-5);
+			DCS_TEST_CHECK_REL_CLOSE(Y(i,j), Y_ok(i,j), 1.0e-5);
 		}
 	}
 }
@@ -463,7 +463,7 @@ DCS_TEST_DEF( test_sim_mimo_with_noise )
 
 		for (size_type j = 0; j < n_y; ++j)
 		{
-			DCS_TEST_CHECK_REL_PRECISION(Y(i,j), Y_ok(i,j), 1.0e-5);
+			DCS_TEST_CHECK_REL_CLOSE(Y(i,j), Y_ok(i,j), 1.0e-5);
 		}
 	}
 }

@@ -107,7 +107,7 @@ DCS_TEST_DEF( test_rarx_siso_without_noise )
 		DCS_DEBUG_TRACE( ">>" << i << " --> y_hat_ok: " << y_hat_ok(i) );
 		DCS_DEBUG_TRACE( "----------------------------------------" << i );
 
-		DCS_TEST_CHECK_REL_PRECISION(y_hat, y_hat_ok(i), 1.0e-5);
+		DCS_TEST_CHECK_REL_CLOSE(y_hat, y_hat_ok(i), 1.0e-5);
 	}
 }
 
@@ -222,7 +222,7 @@ DCS_TEST_DEF( test_rarx_siso_with_noise )
 		DCS_DEBUG_TRACE( ">>" << i << " --> y_hat_ok: " << y_hat_ok(i) );
 		DCS_DEBUG_TRACE( "----------------------------------------" << i );
 
-		DCS_TEST_CHECK_REL_PRECISION(y_hat, y_hat_ok(i), 1.0e-5);
+		DCS_TEST_CHECK_REL_CLOSE(y_hat, y_hat_ok(i), 1.0e-5);
 	}
 }
 
@@ -375,7 +375,7 @@ DCS_TEST_DEF( test_rarx_mimo_without_noise )
 
 		for (size_type j = 0; j < n_y; ++j)
 		{
-			DCS_TEST_CHECK_REL_PRECISION(y_hat(j), Y_hat_ok(i,j), 1.0e-5);
+			DCS_TEST_CHECK_REL_CLOSE(y_hat(j), Y_hat_ok(i,j), 1.0e-5);
 		}
 	}
 }
@@ -560,7 +560,7 @@ DCS_TEST_DEF( test_rarx_mimo_with_noise )
 
 		for (size_type j = 0; j < n_y; ++j)
 		{
-			DCS_TEST_CHECK_REL_PRECISION(y_hat(j), Y_hat_ok(i,j), 1.0e-5);
+			DCS_TEST_CHECK_REL_CLOSE(y_hat(j), Y_hat_ok(i,j), 1.0e-5);
 		}
 	}
 }
