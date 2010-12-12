@@ -1,17 +1,25 @@
+#include <boost/numeric/ublas/io.hpp>
+#include <boost/numeric/ublas/matrix.hpp>
+#include <boost/numeric/ublas/matrix_expression.hpp>
+#include <boost/numeric/ublas/vector.hpp>
+#include <boost/numeric/ublas/vector_expression.hpp>
 #include <cstddef>
 #include <dcs/debug.hpp>
 #include <dcs/test.hpp>
-#include <dcs/math/la/container/dense_matrix.hpp>
-#include <dcs/math/la/container/dense_vector.hpp>
-#include <dcs/math/la/container/identity_matrix.hpp>
-#include <dcs/math/la/operation/io.hpp>
-#include <dcs/math/la/operation/matrix_basic_operations.hpp>
-#include <dcs/math/la/operation/vector_basic_operations.hpp>
+//#include <dcs/math/la/container/matrix.hpp>
+//#include <dcs/math/la/container/vector.hpp>
+//#include <dcs/math/la/container/identity_matrix.hpp>
+//#include <dcs/math/la/operation/io.hpp>
+//#include <dcs/math/la/operation/matrix_basic_operations.hpp>
+//#include <dcs/math/la/operation/vector_basic_operations.hpp>
 #include <dcs/sysid/model/darx_mimo.hpp>
 #include <dcs/sysid/model/darx_siso.hpp>
 #include <limits>
 #include <string>
 #include <sstream>
+
+
+namespace ublas = ::boost::numeric::ublas;
 
 
 DCS_TEST_DEF( test_sim_siso_without_noise )
@@ -21,7 +29,7 @@ DCS_TEST_DEF( test_sim_siso_without_noise )
 	typedef double real_type;
 	typedef ::std::size_t size_type;
 	typedef ::std::size_t uint_type;
-	typedef ::dcs::math::la::dense_vector<real_type> vector_type;;
+	typedef ublas::vector<real_type> vector_type;;
 
 	::std::istringstream iss;
 
@@ -89,7 +97,7 @@ DCS_TEST_DEF( test_sim_siso_with_noise )
 	typedef double real_type;
 	typedef ::std::size_t size_type;
 	typedef ::std::size_t uint_type;
-	typedef ::dcs::math::la::dense_vector<real_type> vector_type;;
+	typedef ublas::vector<real_type> vector_type;;
 
 	::std::istringstream iss;
 
@@ -175,7 +183,7 @@ DCS_TEST_DEF( test_sim_mimo_without_noise )
 	typedef double real_type;
 	typedef ::std::size_t size_type;
 	typedef ::std::size_t uint_type;
-	typedef ::dcs::math::la::dense_matrix<real_type> matrix_type;
+	typedef ublas::matrix<real_type> matrix_type;
 
 	::std::istringstream iss;
 
@@ -279,7 +287,7 @@ DCS_TEST_DEF( test_sim_mimo_without_noise )
 	Bs[2] = B;
 	B.clear();
 
-	matrix_type C(::dcs::math::la::identity_matrix<real_type>(n_y, n_y));
+	matrix_type C(ublas::identity_matrix<real_type>(n_y, n_y));
 
 	::dcs::sysid::darx_mimo_model<matrix_type,real_type,uint_type> mdl(As.begin(), As.end(), Bs.begin(), Bs.end(), C);
 
@@ -289,9 +297,9 @@ DCS_TEST_DEF( test_sim_mimo_without_noise )
 	for (size_type i = 0; i < n_obs; ++i)
 	{
 		std::cout << ">> Observation #" << i << std::endl;
-		std::cout << ">>" << i << " --> U: " << ::dcs::math::la::row(U, i) << std::endl;
-		std::cout << ">>" << i << " --> Y: " << ::dcs::math::la::row(Y, i) << std::endl;
-		std::cout << ">>" << i << " --> Y_ok: " << ::dcs::math::la::row(Y_ok, i) << std::endl;
+		std::cout << ">>" << i << " --> U: " << ublas::row(U, i) << std::endl;
+		std::cout << ">>" << i << " --> Y: " << ublas::row(Y, i) << std::endl;
+		std::cout << ">>" << i << " --> Y_ok: " << ublas::row(Y_ok, i) << std::endl;
 		std::cout << "----------------------------------------" << i << std::endl;
 
 		for (size_type j = 0; j < n_y; ++j)
@@ -309,7 +317,7 @@ DCS_TEST_DEF( test_sim_mimo_with_noise )
 	typedef double real_type;
 	typedef ::std::size_t size_type;
 	typedef ::std::size_t uint_type;
-	typedef ::dcs::math::la::dense_matrix<real_type> matrix_type;
+	typedef ublas::matrix<real_type> matrix_type;
 
 	::std::istringstream iss;
 
@@ -456,9 +464,9 @@ DCS_TEST_DEF( test_sim_mimo_with_noise )
 	for (size_type i = 0; i < n_obs; ++i)
 	{
 		std::cout << ">> Observation #" << i << std::endl;
-		std::cout << ">>" << i << " --> U: " << ::dcs::math::la::row(U, i) << std::endl;
-		std::cout << ">>" << i << " --> Y: " << ::dcs::math::la::row(Y, i) << std::endl;
-		std::cout << ">>" << i << " --> Y_ok: " << ::dcs::math::la::row(Y_ok, i) << std::endl;
+		std::cout << ">>" << i << " --> U: " << ublas::row(U, i) << std::endl;
+		std::cout << ">>" << i << " --> Y: " << ublas::row(Y, i) << std::endl;
+		std::cout << ">>" << i << " --> Y_ok: " << ublas::row(Y_ok, i) << std::endl;
 		std::cout << "----------------------------------------" << i << std::endl;
 
 		for (size_type j = 0; j < n_y; ++j)

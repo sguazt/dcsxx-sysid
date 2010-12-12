@@ -28,11 +28,15 @@
 
 
 #include <algorithm>
+#include <boost/numeric/ublas/vector.hpp>
+#include <boost/numeric/ublas/vector_expression.hpp>
+#include <boost/numeric/ublas/vector_proxy.hpp>
+#include <boost/numeric/ublasx/operation/size.hpp>
 #include <cstddef>
-#include <dcs/math/la/operation/size.hpp>
-#include <dcs/math/la/operation/subrange.hpp>
-#include <dcs/math/la/operation/subslice.hpp>
-#include <dcs/math/la/operation/vector_basic_operations.hpp>
+//#include <dcs/math/la/operation/size.hpp>
+//#include <dcs/math/la/operation/subrange.hpp>
+//#include <dcs/math/la/operation/subslice.hpp>
+//#include <dcs/math/la/operation/vector_basic_operations.hpp>
 #include <iostream>
 #include <iterator>
 #include <utility>
@@ -141,8 +145,8 @@ class darx_siso_model
 	public: ::std::pair<uint_type,uint_type> order() const
 	{
 		return ::std::make_pair(
-					::dcs::math::la::size(a_),
-					::dcs::math::la::size(b_)-1
+					::boost::numeric::ublasx::size(a_),
+					::boost::numeric::ublasx::size(b_)-1
 			);
 	}
 
@@ -156,9 +160,12 @@ class darx_siso_model
 
 	public: vector_type simulate(vector_type const& u, real_type na_value = real_type(0)) const
 	{
+		namespace ublas = ::boost::numeric::ublas;
+		namespace ublasx = ::boost::numeric::ublasx;
+
 		size_type n_obs = u.size(); // # of samples
-		size_type n_a = ::dcs::math::la::size(a_); // # of output channels
-		size_type n_b = ::dcs::math::la::size(b_); // # of input channels
+		size_type n_a = ublasx::size(a_); // # of output channels
+		size_type n_b = ublasx::size(b_); // # of input channels
 		//size_type k_min = ::std::max(n_a*ts_, (n_b+d_)*ts_)-1;
 		//size_type k_min = (n_b > 0) ? ((n_b+d_)*ts_-1) : 0;
 		size_type k_min = 0;
@@ -185,11 +192,11 @@ class darx_siso_model
 			{
 				size_type nn_a = ::std::min(n_a, k);
 
-				y(k) -=	::dcs::math::la::inner_prod(
+				y(k) -=	ublas::inner_prod(
 						//a_,
-						::dcs::math::la::subrange(a_, 0, nn_a),
-						//::dcs::math::la::subslice(y, k-1, -1, n_a)
-						::dcs::math::la::subslice(y, k-1, -1, nn_a)
+						ublas::subrange(a_, 0, nn_a),
+						//ublas::subslice(y, k-1, -1, n_a)
+						ublas::subslice(y, k-1, -1, nn_a)
 					);
 			}
 
@@ -197,11 +204,11 @@ class darx_siso_model
 			{
 				size_type nn_b = ::std::min(n_b, k+1);
 
-				y(k) += ::dcs::math::la::inner_prod(
+				y(k) += ublas::inner_prod(
 						//b_,
-						::dcs::math::la::subrange(b_, 0, nn_b),
+						ublas::subrange(b_, 0, nn_b),
 						//::dcs::math::la::subslice(u, k, -1, n_b)
-						::dcs::math::la::subslice(u, k, -1, nn_b)
+						ublas::subslice(u, k, -1, nn_b)
 					);
 			}
 		}
@@ -212,6 +219,9 @@ class darx_siso_model
 
 	public: vector_type simulate(vector_type const& u, vector_type const& e, real_type na_value = real_type(0)) const
 	{
+		namespace ublas = ::boost::numeric::ublas;
+		namespace ublasx = ::boost::numeric::ublasx;
+
 		size_type n_obs = u.size();
 		size_type n_e = e.size();
 
@@ -220,8 +230,8 @@ class darx_siso_model
 			throw ::std::logic_error("Size of Input Data and Noise Data does not match.")
 		);
 
-		size_type n_a = ::dcs::math::la::size(a_); // # of output channels
-		size_type n_b = ::dcs::math::la::size(b_); // # of input channels
+		size_type n_a = ublasx::size(a_); // # of output channels
+		size_type n_b = ublasx::size(b_); // # of input channels
 		size_type k_min = 0;
 		size_type k_max = n_obs - ::std::min(static_cast<size_type>(d_*ts_), n_obs);
 
@@ -239,11 +249,11 @@ class darx_siso_model
 			{
 				size_type nn_a = ::std::min(n_a, k);
 
-				y(k) -=	::dcs::math::la::inner_prod(
+				y(k) -=	ublas::inner_prod(
 						//a_,
-						::dcs::math::la::subrange(a_, 0, nn_a),
+						ublas::subrange(a_, 0, nn_a),
 						//::dcs::math::la::subslice(y, k-1, -1, n_a)
-						::dcs::math::la::subslice(y, k-1, -1, nn_a)
+						ublas::subslice(y, k-1, -1, nn_a)
 					);
 			}
 
@@ -251,11 +261,11 @@ class darx_siso_model
 			{
 				size_type nn_b = ::std::min(n_b, k+1);
 
-				y(k) += ::dcs::math::la::inner_prod(
+				y(k) += ublas::inner_prod(
 						//b_,
-						::dcs::math::la::subrange(b_, 0, nn_b),
+						ublas::subrange(b_, 0, nn_b),
 						//::dcs::math::la::subslice(u, k, -1, n_b)
-						::dcs::math::la::subslice(u, k, -1, nn_b)
+						ublas::subslice(u, k, -1, nn_b)
 					);
 			}
 

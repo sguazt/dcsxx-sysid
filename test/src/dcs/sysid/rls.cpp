@@ -1,18 +1,27 @@
+#include <boost/numeric/ublas/io.hpp>
+#include <boost/numeric/ublas/matrix.hpp>
+#include <boost/numeric/ublas/matrix_expression.hpp>
+#include <boost/numeric/ublas/matrix_proxy.hpp>
+#include <boost/numeric/ublas/vector.hpp>
+#include <boost/numeric/ublas/vector_expression.hpp>
 #include <cstddef>
 #include <dcs/debug.hpp>
 #include <dcs/test.hpp>
-#include <dcs/math/la/container/dense_matrix.hpp>
-#include <dcs/math/la/container/dense_vector.hpp>
-#include <dcs/math/la/container/identity_matrix.hpp>
-#include <dcs/math/la/operation/io.hpp>
-#include <dcs/math/la/operation/matrix_basic_operations.hpp>
-#include <dcs/math/la/operation/row.hpp>
-#include <dcs/math/la/operation/vector_basic_operations.hpp>
+//#include <dcs/math/la/container/matrix.hpp>
+//#include <dcs/math/la/container/vector.hpp>
+//#include <dcs/math/la/container/identity_matrix.hpp>
+//#include <dcs/math/la/operation/io.hpp>
+//#include <dcs/math/la/operation/matrix_basic_operations.hpp>
+//#include <dcs/math/la/operation/row.hpp>
+//#include <dcs/math/la/operation/vector_basic_operations.hpp>
 #include <dcs/sysid/algorithm/rls.hpp>
 #include <dcs/sysid/model/darx_siso.hpp>
 #include <limits>
 #include <string>
 #include <sstream>
+
+
+namespace ublas = ::boost::numeric::ublas;
 
 
 DCS_TEST_DEF( test_rarx_siso_without_noise )
@@ -22,8 +31,8 @@ DCS_TEST_DEF( test_rarx_siso_without_noise )
 	typedef double real_type;
 	typedef ::std::size_t size_type;
 	typedef ::std::size_t uint_type;
-	typedef ::dcs::math::la::dense_vector<real_type> vector_type;;
-	typedef ::dcs::math::la::dense_matrix<real_type> matrix_type;;
+	typedef ublas::vector<real_type> vector_type;;
+	typedef ublas::matrix<real_type> matrix_type;;
 
 	::std::istringstream iss;
 
@@ -119,8 +128,8 @@ DCS_TEST_DEF( test_rarx_siso_with_noise )
 	typedef double real_type;
 	typedef ::std::size_t size_type;
 	typedef ::std::size_t uint_type;
-	typedef ::dcs::math::la::dense_vector<real_type> vector_type;;
-	typedef ::dcs::math::la::dense_matrix<real_type> matrix_type;;
+	typedef ublas::vector<real_type> vector_type;;
+	typedef ublas::matrix<real_type> matrix_type;;
 
 	::std::istringstream iss;
 
@@ -233,8 +242,8 @@ DCS_TEST_DEF( test_rarx_mimo_without_noise )
 
 	typedef double real_type;
 	typedef ::std::size_t size_type;
-	typedef ::dcs::math::la::dense_matrix<real_type> matrix_type;
-	typedef ::dcs::math::la::dense_vector<real_type> vector_type;
+	typedef ublas::matrix<real_type> matrix_type;
+	typedef ublas::vector<real_type> vector_type;
 
 	::std::istringstream iss;
 
@@ -347,8 +356,8 @@ DCS_TEST_DEF( test_rarx_mimo_without_noise )
 
 	for (size_type i = 0; i < n_obs; ++i)
 	{
-		vector_type y(::dcs::math::la::row(Y, i));
-		vector_type u(::dcs::math::la::row(U, i));
+		vector_type y(ublas::row(Y, i));
+		vector_type u(ublas::row(U, i));
 		vector_type y_hat;
 
 		y_hat = ::dcs::sysid::rls_ff_arx_mimo(
@@ -370,7 +379,7 @@ DCS_TEST_DEF( test_rarx_mimo_without_noise )
 		DCS_DEBUG_TRACE( ">>" << i << " --> P: " << P );
 		DCS_DEBUG_TRACE( ">>" << i << " --> phi: " << phi );
 		DCS_DEBUG_TRACE( ">>" << i << " --> y_hat: " << y_hat );
-		DCS_DEBUG_TRACE( ">>" << i << " --> y_hat_ok: " << ::dcs::math::la::row(Y_hat_ok, i) );
+		DCS_DEBUG_TRACE( ">>" << i << " --> y_hat_ok: " << ublas::row(Y_hat_ok, i) );
 		DCS_DEBUG_TRACE( "----------------------------------------" << i );
 
 		for (size_type j = 0; j < n_y; ++j)
@@ -387,8 +396,8 @@ DCS_TEST_DEF( test_rarx_mimo_with_noise )
 
 	typedef double real_type;
 	typedef ::std::size_t size_type;
-	typedef ::dcs::math::la::dense_matrix<real_type> matrix_type;
-	typedef ::dcs::math::la::dense_vector<real_type> vector_type;
+	typedef ublas::matrix<real_type> matrix_type;
+	typedef ublas::vector<real_type> vector_type;
 
 	::std::istringstream iss;
 
@@ -531,8 +540,8 @@ DCS_TEST_DEF( test_rarx_mimo_with_noise )
 
 	for (size_type i = 0; i < n_obs; ++i)
 	{
-		vector_type y(::dcs::math::la::row(Y, i));
-		vector_type u(::dcs::math::la::row(U, i));
+		vector_type y(ublas::row(Y, i));
+		vector_type u(ublas::row(U, i));
 		vector_type y_hat;
 
 		y_hat = ::dcs::sysid::rls_ff_arx_mimo(
@@ -549,13 +558,13 @@ DCS_TEST_DEF( test_rarx_mimo_with_noise )
 
 		DCS_DEBUG_TRACE( ">> Observation #" << i );
 		DCS_DEBUG_TRACE( ">>" << i << " --> u: " << u );
-		DCS_DEBUG_TRACE( ">>" << i << " --> e: " << ::dcs::math::la::row(E, i) );
+		DCS_DEBUG_TRACE( ">>" << i << " --> e: " << ublas::row(E, i) );
 		DCS_DEBUG_TRACE( ">>" << i << " --> y: " << y );
 		DCS_DEBUG_TRACE( ">>" << i << " --> theta_hat: " << theta_hat );
 		DCS_DEBUG_TRACE( ">>" << i << " --> P: " << P );
 		DCS_DEBUG_TRACE( ">>" << i << " --> phi: " << phi );
 		DCS_DEBUG_TRACE( ">>" << i << " --> y_hat: " << y_hat );
-		DCS_DEBUG_TRACE( ">>" << i << " --> y_hat_ok: " << ::dcs::math::la::row(Y_hat_ok, i) );
+		DCS_DEBUG_TRACE( ">>" << i << " --> y_hat_ok: " << ublas::row(Y_hat_ok, i) );
 		DCS_DEBUG_TRACE( "----------------------------------------" << i );
 
 		for (size_type j = 0; j < n_y; ++j)

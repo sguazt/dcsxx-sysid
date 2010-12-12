@@ -28,16 +28,25 @@
 
 
 #include <algorithm>
+#include <boost/numeric/ublas/matrix.hpp>
+#include <boost/numeric/ublas/matrix_expression.hpp>
+#include <boost/numeric/ublas/matrix_proxy.hpp>
+#include <boost/numeric/ublas/vector.hpp>
+#include <boost/numeric/ublas/vector_expression.hpp>
+#include <boost/numeric/ublas/vector_proxy.hpp>
+#include <boost/numeric/ublasx/operation/num_columns.hpp>
+#include <boost/numeric/ublasx/operation/num_rows.hpp>
+#include <boost/numeric/ublasx/operation/size.hpp>
 #include <cstddef>
 #include <dcs/assert.hpp>
-#include <dcs/math/la/container/identity_matrix.hpp>
-#include <dcs/math/la/container/zero_vector.hpp>
-#include <dcs/math/la/operation/num_columns.hpp>
-#include <dcs/math/la/operation/num_columns.hpp>
-#include <dcs/math/la/operation/row.hpp>
-#include <dcs/math/la/operation/size.hpp>
-#include <dcs/math/la/operation/subslice.hpp>
-#include <dcs/math/la/operation/matrix_basic_operations.hpp>
+//#include <dcs/math/la/container/identity_matrix.hpp>
+//#include <dcs/math/la/container/zero_vector.hpp>
+//#include <dcs/math/la/operation/num_columns.hpp>
+//#include <dcs/math/la/operation/num_columns.hpp>
+//#include <dcs/math/la/operation/row.hpp>
+//#include <dcs/math/la/operation/size.hpp>
+//#include <dcs/math/la/operation/subslice.hpp>
+//#include <dcs/math/la/operation/matrix_basic_operations.hpp>
 #include <iostream>
 #include <iterator>
 #include <utility>
@@ -71,7 +80,7 @@ class darx_mimo_model
 		darx_mimo_model(ForwardIteratorAT A_begin, ForwardIteratorAT A_end, ForwardIteratorBT B_begin, ForwardIteratorBT B_end, uint_type delay = 0, uint_type sampling_time = 1)
 		: As_(A_begin, A_end),
 		  Bs_(B_begin, B_end),
-		  E_covar_(::dcs::math::la::identity_matrix<real_type>(::dcs::math::la::num_rows(As_[0]))),
+		  E_covar_(::boost::numeric::ublas::identity_matrix<real_type>(::boost::numeric::ublasx::num_rows(As_[0]))),
 		  d_(delay),
 		  ts_(sampling_time)
 	{
@@ -97,9 +106,9 @@ class darx_mimo_model
 	public: ::std::pair<uint_type,uint_type> order() const
 	{
 		return ::std::make_pair(
-					::dcs::math::la::size(As_),
-					(::dcs::math::la::size(Bs_) > 0)
-						? (::dcs::math::la::size(Bs_)-1)
+					As_.size(),
+					(Bs_.size() > 0)
+						? (Bs_.size()-1)
 						: 0
 			);
 	}
@@ -122,10 +131,13 @@ class darx_mimo_model
 	 */
 	public: matrix_type simulate(matrix_type const& U, real_type na_value = real_type(0)) const
 	{
-		size_type n_obs = ::dcs::math::la::num_rows(U); // # of samples
-		size_type n_a = ::dcs::math::la::size(As_); // # of output channels
-		size_type n_b = ::dcs::math::la::size(Bs_); // # of input channels
-		size_type n_y = ::dcs::math::la::num_rows(As_[0]); // # of outputs
+		namespace ublas = ::boost::numeric::ublas;
+		namespace ublasx = ::boost::numeric::ublasx;
+
+		size_type n_obs = ublasx::num_rows(U); // # of samples
+		size_type n_a = As_.size(); // # of output channels
+		size_type n_b = Bs_.size(); // # of input channels
+		size_type n_y = ublasx::num_rows(As_[0]); // # of outputs
 		//size_type n_u = ::dcs::math::la::num_columns(Bs_[0]); // # of inputs
 		//size_type n_min = ::std::max(n_a*ts_, (n_b+d_)*ts_)-1;
 		//size_type k_min = (n_b > 0) ? ((n_b+d_)*ts_-1) : 0;
@@ -135,11 +147,11 @@ class darx_mimo_model
 		matrix_type Y(n_obs, n_y, na_value);
 
 		// For n_y output channels and N samples, this is an N-by-n_y matrix.
-		::dcs::math::la::zero_vector<real_type> zero_vec(n_y);
+		ublas::zero_vector<real_type> zero_vec(n_y);
 		for (size_type k = k_min; k < k_max; ++k)
 		{
 			// Initialize current output to zero
-			::dcs::math::la::row(Y, k) = zero_vec;
+			ublas::row(Y, k) = zero_vec;
 
 			// Add the outputs contribution (if any)
 			if (n_a > 0 && k > 0)
@@ -147,10 +159,10 @@ class darx_mimo_model
 				size_type j_max = ::std::min(n_a, k);
 				for (size_type j = 0; j < j_max; ++j)
 				{
-					::dcs::math::la::row(Y, k) -= ::dcs::math::la::prod(
-						As_[j], //n_yxn_y
-						::dcs::math::la::row(Y, k-1-j) //n_ux1
-					);
+					ublas::row(Y, k) -= ublas::prod(
+							As_[j], //n_yxn_y
+							ublas::row(Y, k-1-j) //n_ux1
+						);
 				}
 			}
 
@@ -160,10 +172,10 @@ class darx_mimo_model
 				size_type j_max = ::std::min(n_b, k+1);
 				for (size_type j = 0; j < j_max; ++j)
 				{
-					::dcs::math::la::row(Y, k) += ::dcs::math::la::prod(
-						Bs_[j], //n_yxn_u
-						::dcs::math::la::row(U, k-j) //n_ux1
-					);
+					ublas::row(Y, k) += ublas::prod(
+							Bs_[j], //n_yxn_u
+							ublas::row(U, k-j) //n_ux1
+						);
 				}
 			}
 		}
@@ -174,25 +186,28 @@ class darx_mimo_model
 
 	public: matrix_type simulate(matrix_type const& U, matrix_type const& E, real_type na_value = real_type(0)) const
 	{
+		namespace ublas = ::boost::numeric::ublas;
+		namespace ublasx = ::boost::numeric::ublasx;
+
 		// preconditions
 		DCS_ASSERT(
-			::dcs::math::la::num_rows(U) == ::dcs::math::la::num_rows(E),
+			ublasx::num_rows(U) == ublasx::num_rows(E),
 			throw ::std::logic_error("The number of input and noise samples does not match.")
 		);
 		DCS_ASSERT(
-			::dcs::math::la::num_columns(E) == ::dcs::math::la::num_rows(As_[0]),
+			ublasx::num_columns(E) == ublasx::num_rows(As_[0]),
 			throw ::std::logic_error("The number of noise and output channels does not match.")
 		);
 		DCS_ASSERT(
-			::dcs::math::la::num_columns(U) == ::dcs::math::la::num_rows(Bs_[0]),
+			ublasx::num_columns(U) == ublasx::num_rows(Bs_[0]),
 			throw ::std::logic_error("The number of sample input channels and input channels does not match.")
 		);
 
-		size_type n_obs = ::dcs::math::la::num_rows(U); // # of samples
-		size_type n_a = ::dcs::math::la::size(As_); // # of output channels
-		size_type n_b = ::dcs::math::la::size(Bs_); // # of input channels
-		size_type n_y = ::dcs::math::la::num_rows(As_[0]); // # of outputs
-		//size_type n_u = ::dcs::math::la::num_columns(Bs_[0]); // # of inputs
+		size_type n_obs = ublasx::num_rows(U); // # of samples
+		size_type n_a = As_.size(); // # of output channels
+		size_type n_b = Bs_.size(); // # of input channels
+		size_type n_y = ublasx::num_rows(As_[0]); // # of outputs
+		//size_type n_u = ublas::num_columns(Bs_[0]); // # of inputs
 		//size_type n_min = ::std::max(n_a*ts_, (n_b+d_)*ts_)-1;
 		//size_type k_min = (n_b > 0) ? ((n_b+d_)*ts_-1) : 0;
 		size_type k_min = 0;
@@ -201,11 +216,11 @@ class darx_mimo_model
 		matrix_type Y(n_obs, n_y, na_value);
 
 		// For n_y output channels and N samples, this is an N-by-n_y matrix.
-		::dcs::math::la::zero_vector<real_type> zero_vec(n_y);
+		ublas::zero_vector<real_type> zero_vec(n_y);
 		for (size_type k = k_min; k < k_max; ++k)
 		{
 			// Initialize current output to zero
-			::dcs::math::la::row(Y, k) = zero_vec;
+			ublas::row(Y, k) = zero_vec;
 
 			// Add the outputs contribution (if any)
 			if (n_a > 0 && k > 0)
@@ -213,10 +228,10 @@ class darx_mimo_model
 				size_type j_max = ::std::min(n_a, k);
 				for (size_type j = 0; j < j_max; ++j)
 				{
-					::dcs::math::la::row(Y, k) -= ::dcs::math::la::prod(
-						As_[j], //n_yxn_y
-						::dcs::math::la::row(Y, k-1-j) //n_ux1
-					);
+					ublas::row(Y, k) -= ublas::prod(
+							As_[j], //n_yxn_y
+							ublas::row(Y, k-1-j) //n_ux1
+						);
 				}
 			}
 
@@ -226,18 +241,18 @@ class darx_mimo_model
 				size_type j_max = ::std::min(n_b, k+1);
 				for (size_type j = 0; j < j_max; ++j)
 				{
-					::dcs::math::la::row(Y, k) += ::dcs::math::la::prod(
-						Bs_[j], //n_yxn_u
-						::dcs::math::la::row(U, k-j) //n_ux1
-					);
+					ublas::row(Y, k) += ublas::prod(
+							Bs_[j], //n_yxn_u
+							ublas::row(U, k-j) //n_ux1
+						);
 				}
 			}
 
 			// Add the noise contribution
-			::dcs::math::la::row(Y, k) += ::dcs::math::la::prod(
-					E_covar_,
-					::dcs::math::la::row(E, k)
-			);
+			ublas::row(Y, k) += ublas::prod(
+						E_covar_,
+						ublas::row(E, k)
+				);
 		}
 
 		return Y;

@@ -25,17 +25,27 @@
 #define DCS_SYSID_ALGORITHM_RLS_HPP
 
 
+#include <boost/numeric/ublas/matrix.hpp>
+#include <boost/numeric/ublas/matrix_expression.hpp>
+#include <boost/numeric/ublas/matrix_proxy.hpp>
+#include <boost/numeric/ublas/traits.hpp>
+#include <boost/numeric/ublas/vector.hpp>
+#include <boost/numeric/ublas/vector_proxy.hpp>
+#include <boost/numeric/ublas/vector_expression.hpp>
+#include <boost/numeric/ublasx/operation/num_columns.hpp>
+#include <boost/numeric/ublasx/operation/num_rows.hpp>
+#include <boost/numeric/ublasx/operation/size.hpp>
 #include <dcs/assert.hpp>
 #include <dcs/debug.hpp>
-#include <dcs/math/la/container/identity_matrix.hpp>
-#include <dcs/math/la/operation/matrix_basic_operations.hpp>
-#include <dcs/math/la/operation/num_columns.hpp>
-#include <dcs/math/la/operation/num_rows.hpp>
-#include <dcs/math/la/operation/vector_basic_operations.hpp>
-#include <dcs/math/la/operation/size.hpp>
-#include <dcs/math/la/operation/subrange.hpp>
-#include <dcs/math/la/traits/matrix.hpp>
-#include <dcs/math/la/traits/vector.hpp>
+//#include <dcs/math/la/container/identity_matrix.hpp>
+//#include <dcs/math/la/operation/matrix_basic_operations.hpp>
+//#include <dcs/math/la/operation/num_columns.hpp>
+//#include <dcs/math/la/operation/num_rows.hpp>
+//#include <dcs/math/la/operation/vector_basic_operations.hpp>
+//#include <dcs/math/la/operation/size.hpp>
+//#include <dcs/math/la/operation/subrange.hpp>
+//#include <dcs/math/la/traits/matrix.hpp>
+//#include <dcs/math/la/traits/vector.hpp>
 #include <limits>
 #include <stdexcept>
 
@@ -67,9 +77,11 @@ template <
 >
 void rls_arx_siso_init(UIntT n_a, UIntT n_b, UIntT d, VectorT& theta0_hat, MatrixT& P0, VectorT& phi0)
 {
+	namespace ublas = ::boost::numeric::ublas;
+
 	//typedef RealT real_type;
-	typedef typename ::dcs::math::la::matrix_traits<MatrixT>::value_type value_type;
-	typedef typename ::dcs::math::la::vector_traits<VectorT>::size_type size_type;
+	typedef typename ublas::matrix_traits<MatrixT>::value_type value_type;
+	typedef typename ublas::vector_traits<VectorT>::size_type size_type;
 
 	//UIntT n1 = n_a+n_b+1;
 	//UIntT n2 = n_a+n_b+1+d;
@@ -82,8 +94,8 @@ void rls_arx_siso_init(UIntT n_a, UIntT n_b, UIntT d, VectorT& theta0_hat, Matri
 						value_type(2.22045e-16)
 						//::std::numeric_limits<value_type>::min() // alternative initialization
 	);
-	//P0 = 10000*::dcs::math::la::identity_matrix<value_type>(n2);
-	P0 = 10000*::dcs::math::la::identity_matrix<value_type>(n);
+	//P0 = 10000*ublas::identity_matrix<value_type>(n2);
+	P0 = 10000*ublas::identity_matrix<value_type>(n);
 	//phi0 = VectorT(n2, 0);
 	phi0 = VectorT(n, 0);
 }
@@ -119,10 +131,13 @@ template <
 >
 RealT rls_ff_arx_siso(RealT y, RealT u, RealT lambda, UIntT n_a, UIntT n_b, UIntT d, VectorT& theta_hat, MatrixT& P, VectorT& phi)
 {
-	typedef RealT real_type;
-	typedef typename ::dcs::math::la::vector_traits<VectorT>::size_type size_type;
+	namespace ublas = ::boost::numeric::ublas;
+	namespace ublasx = ::boost::numeric::ublasx;
 
-	size_type n = ::dcs::math::la::size(phi);
+	typedef RealT real_type;
+	typedef typename ublas::vector_traits<VectorT>::size_type size_type;
+
+	size_type n = ublasx::size(phi);
 
 	DCS_ASSERT(
 		n == (n_a+n_b+1+d),
@@ -134,29 +149,29 @@ RealT rls_ff_arx_siso(RealT y, RealT u, RealT lambda, UIntT n_a, UIntT n_b, UInt
 	// Compute the Gain
 	// L(k+1) = \frac{P(k)\phi(k+1)}{\lambda(k)+\phi^T(k+1)P(k)\phi(k+1)}
 	VectorT L(n);
-	L = ::dcs::math::la::prod(P, phi)
+	L = ublas::prod(P, phi)
 		/ (
 			lambda
-			+ ::dcs::math::la::inner_prod(
-				//::dcs::math::la::prod(phi_t, P),
-				::dcs::math::la::prod(phi, P),
+			+ ublas::inner_prod(
+				//ublas::prod(phi_t, P),
+				ublas::prod(phi, P),
 				phi
 			)
 	);
 
 	// Update the covariance matrix
 	// P(k+1) = \frac{1}{\lambda(k)}\left[I-L(k+1)\Phi^T(k+1)\right]P(k)
-	P = ::dcs::math::la::prod(
-			::dcs::math::la::identity_matrix<real_type>(n)
+	P = ublas::prod(
+			ublas::identity_matrix<real_type>(n)
 			-
-			//::dcs::math::la::outer_prod(L, phi_t),
-			::dcs::math::la::outer_prod(L, phi),
+			//ublas::outer_prod(L, phi_t),
+			ublas::outer_prod(L, phi),
 			P
 		)
 		/ lambda;
 
 	// Compute output estimate
-	real_type y_hat = ::dcs::math::la::inner_prod(phi, theta_hat);
+	real_type y_hat = ublas::inner_prod(phi, theta_hat);
 
 	// Update parameters estimate
 	// \hat{\theta}(k+1) = \hat{\theta}(k)+L(k+1)(y(k+1)-\Phi^T(k+1)\hat{\theta}(k))
@@ -170,11 +185,11 @@ RealT rls_ff_arx_siso(RealT y, RealT u, RealT lambda, UIntT n_a, UIntT n_b, UInt
 	//           &= [-y(k+1), \phi_1(k+1), \phi_2(k+1), \ldots, \phi_{n_a-1}(k+1), u(k+1), \ldots, \phi_(k+1)]
 	VectorT phi_new(n, 0);
 	phi_new(0) = -y;
-	//::dcs::math::la::subrange(phi_new, 1, n_a) = ::dcs::math::la::subrange(phi, 0, n_a-1);
-	::dcs::math::la::subrange(phi_new, 1, n_a) = ::dcs::math::la::subrange(phi, 0, n_a-1);
+	//ublas::subrange(phi_new, 1, n_a) = ublas::subrange(phi, 0, n_a-1);
+	ublas::subrange(phi_new, 1, n_a) = ublas::subrange(phi, 0, n_a-1);
 	phi_new(n_a) = u;
-	//::dcs::math::la::subrange(phi_new, n_a+1, n_a+n_b) = ::dcs::math::la::subrange(phi, n_a, n_a+n_b-1);
-	::dcs::math::la::subrange(phi_new, n_a+1, n_a+n_b+1) = ::dcs::math::la::subrange(phi, n_a, n_a+n_b);
+	//ublas::subrange(phi_new, n_a+1, n_a+n_b) = ublas::subrange(phi, n_a, n_a+n_b-1);
+	ublas::subrange(phi_new, n_a+1, n_a+n_b+1) = ublas::subrange(phi, n_a, n_a+n_b);
 	phi = phi_new;
 
 	return y_hat;
@@ -205,8 +220,10 @@ template <
 >
 void rls_arx_mimo_init(UIntT n_a, UIntT n_b, UIntT d, UIntT n_y, UIntT n_u, MatrixT& theta0_hat, MatrixT& P0, VectorT& phi0)
 {
-	typedef typename ::dcs::math::la::matrix_traits<MatrixT>::value_type value_type;
-	typedef typename ::dcs::math::la::vector_traits<VectorT>::size_type size_type;
+	namespace ublas = ::boost::numeric::ublas;
+
+	typedef typename ublas::matrix_traits<MatrixT>::value_type value_type;
+	typedef typename ublas::vector_traits<VectorT>::size_type size_type;
 
 	//size_type n1 = n_a*n_y+(n_b+1)*n_u;
 	//size_type n2 = n_a*n_y+(n_b+1)*n_u+d;
@@ -220,7 +237,7 @@ void rls_arx_mimo_init(UIntT n_a, UIntT n_b, UIntT d, UIntT n_y, UIntT n_u, Matr
 						//::std::numeric_limits<value_type>::min() // alternative initialization
 	);
 	//P0 = 10000*::dcs::math::la::identity_matrix<value_type>(n2);
-	P0 = 10000*::dcs::math::la::identity_matrix<value_type>(n);
+	P0 = 10000*ublas::identity_matrix<value_type>(n);
 	//phi0 = VectorT(n2, 0);
 	phi0 = VectorT(n, 0);
 }
@@ -255,13 +272,16 @@ template <
 >
 VectorT rls_ff_arx_mimo(VectorT y, VectorT u, RealT lambda, UIntT n_a, UIntT n_b, UIntT d, MatrixT& theta_hat, MatrixT& P, VectorT& phi)
 {
+	namespace ublas = ::boost::numeric::ublas;
+	namespace ublasx = ::boost::numeric::ublasx;
+
 	typedef RealT real_type;
 	typedef VectorT vector_type;
-	typedef typename ::dcs::math::la::vector_traits<VectorT>::size_type size_type;
+	typedef typename ublas::vector_traits<VectorT>::size_type size_type;
 
-	size_type n = ::dcs::math::la::size(phi);
-	size_type n_y = ::dcs::math::la::size(y);
-	size_type n_u = ::dcs::math::la::size(u);
+	size_type n = ublasx::size(phi);
+	size_type n_y = ublasx::size(y);
+	size_type n_u = ublasx::size(u);
 
 	// preconditions
 	DCS_ASSERT(
@@ -269,49 +289,49 @@ VectorT rls_ff_arx_mimo(VectorT y, VectorT u, RealT lambda, UIntT n_a, UIntT n_b
 		throw ::std::logic_error("The size of the regression vector must be equal to the sum of the orders of the ARX model.")
 	);
 	DCS_ASSERT(
-		::dcs::math::la::num_rows(P) == n && ::dcs::math::la::num_columns(P) == n,
+		ublasx::num_rows(P) == n && ublasx::num_columns(P) == n,
 		throw ::std::logic_error("The size of the covariance matrix must be equal to the sum of the orders of the ARX model.")
 	);
 	DCS_ASSERT(
-		::dcs::math::la::num_rows(theta_hat) == n_y && ::dcs::math::la::num_columns(theta_hat) == n,
+		ublasx::num_rows(theta_hat) == n_y && ublasx::num_columns(theta_hat) == n,
 		throw ::std::logic_error("The size of the parameter matrix is not compatible with the ARX model.")
 	);
 
 	// Compute the Gain
 	// L(k+1) = \frac{P(k)\phi(k+1)}{\lambda(k)+\phi^T(k+1)P(k)\phi(k+1)}
 	VectorT L(n);
-	L = ::dcs::math::la::prod(P, phi)
+	L = ublas::prod(P, phi)
 		/ (
 			lambda
-			+ ::dcs::math::la::inner_prod(
-				::dcs::math::la::prod(phi, P),
+			+ ublas::inner_prod(
+				ublas::prod(phi, P),
 				phi
 			)
 	);
 
 	// Update the covariance matrix
 	// P(k+1) = \frac{1}{\lambda(k)}\left[I-L(k+1)\Phi^T(k+1)\right]P(k)
-	P = ::dcs::math::la::prod(
-			::dcs::math::la::identity_matrix<real_type>(n)
+	P = ublas::prod(
+			ublas::identity_matrix<real_type>(n)
 			-
-			::dcs::math::la::outer_prod(L, phi),
+			ublas::outer_prod(L, phi),
 			P
 		)
 		/ lambda;
 
 	// Compute output estimate
-	vector_type y_hat = ::dcs::math::la::prod(theta_hat, phi);
+	vector_type y_hat = ublas::prod(theta_hat, phi);
 
 	// Update parameters estimate
 	// \hat{\theta}(k+1) = \hat{\theta}(k)+(y(k+1)-\Phi^T(k+1)\hat{\theta}(k))L^T(k+1)
-	theta_hat = theta_hat + ::dcs::math::la::outer_prod(y - y_hat, L);
+	theta_hat = theta_hat + ublas::outer_prod(y - y_hat, L);
 
 	// Update the Regression vector
 	VectorT phi_new(n, 0);
-	::dcs::math::la::subrange(phi_new, 0, n_y) = ::dcs::math::la::subrange(-y, 0, n_y);
-	::dcs::math::la::subrange(phi_new, n_y, n_y*n_a) = ::dcs::math::la::subrange(phi, 0, n_y*(n_a-1));
-	::dcs::math::la::subrange(phi_new, n_y*n_a, n_y*n_a+n_u) = ::dcs::math::la::subrange(u, 0, n_u);
-	::dcs::math::la::subrange(phi_new, n_y*n_a+n_u, n_y*n_a+n_u*(n_b+1)) = ::dcs::math::la::subrange(phi, n_y*n_a, n_y*n_a+n_u*n_b);
+	ublas::subrange(phi_new, 0, n_y) = ublas::subrange(-y, 0, n_y);
+	ublas::subrange(phi_new, n_y, n_y*n_a) = ublas::subrange(phi, 0, n_y*(n_a-1));
+	ublas::subrange(phi_new, n_y*n_a, n_y*n_a+n_u) = ublas::subrange(u, 0, n_u);
+	ublas::subrange(phi_new, n_y*n_a+n_u, n_y*n_a+n_u*(n_b+1)) = ublas::subrange(phi, n_y*n_a, n_y*n_a+n_u*n_b);
 	phi = phi_new;
 
 	return y_hat;
