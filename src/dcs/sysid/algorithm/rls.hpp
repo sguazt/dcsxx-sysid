@@ -229,17 +229,14 @@ void rls_arx_mimo_init(UIntT n_a, UIntT n_b, UIntT d, UIntT n_y, UIntT n_u, Matr
 	//size_type n2 = n_a*n_y+(n_b+1)*n_u+d;
 	size_type n = n_a*n_y+(n_b+1)*n_u+d;
 
-	theta0_hat = MatrixT(
-						n_y,
-						//n1,
-						n,
-						value_type(2.22045e-16)
-						//::std::numeric_limits<value_type>::min() // alternative initialization
-	);
+//	theta0_hat = ublas::zero_matrix<value_type>(n_y, n);
+	theta0_hat = ublas::scalar_matrix<value_type>(n_y, n, 2.22045e-16);
+//	theta0_hat = ublas::scalar_matrix<value_type>(n_y, n, ::std::numeric_limits<value_type>::min()); // alternative initialization
 	//P0 = 10000*::dcs::math::la::identity_matrix<value_type>(n2);
-	P0 = 10000*ublas::identity_matrix<value_type>(n);
+	P0 = 1e+4*ublas::identity_matrix<value_type>(n);
 	//phi0 = VectorT(n2, 0);
-	phi0 = VectorT(n, 0);
+	//phi0 = VectorT(n, 0);
+	phi0 = ublas::zero_vector<value_type>(n);
 }
 
 
@@ -261,8 +258,9 @@ void rls_arx_mimo_init(UIntT n_a, UIntT n_b, UIntT d, UIntT n_y, UIntT n_u, Matr
  * \param theta_hat The current parameter estimate matrix.
  * \param P Covariance matrix.
  * \param phi The current regression vector.
- * \return Nothing. However matrix \a theta_hat, matrix \a P and vector \a phi
- *  are changed in order to reflect the current RLS update step.
+ * \return The output estimate \f$\hat{y}\f$. Furthermore, matrix \a theta_hat,
+ *  matrix \a P and vector \a phi are changed in order to reflect the current
+ *  RLS update step.
  */
 template <
 	typename RealT,
