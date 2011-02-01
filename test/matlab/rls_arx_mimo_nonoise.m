@@ -56,7 +56,7 @@ nb=2;
 nk=0;
 ny=2;
 nu=2;
-nobs=rows(U);
+nobs=size(U,1);
 ff = 0.98;
 
 %n1 = na*ny+(nb+1)*nu;
@@ -76,13 +76,13 @@ for k=1:nobs
 	Theta_hat = Theta_hat+(Y(k,:)'-Y_hat(k,:)')*L';
 	phi = [-Y(k,:) phi(1:(na-1)*ny)' U(k,:) phi((na*ny+1):(na*ny+nb*nu))']';
 
-	%disp(['Observation #: ', num2str(k)]);
-	%disp(['U: ', mat2str(U(k,:))]);
-	%disp(['Y: ', mat2str(Y(k,:))]);
-	%disp(['Theta_hat: ', mat2str(Theta_hat)]);
-	%disp(['P: ', mat2str(P)]);
-	%disp(['phi: ', mat2str(phi)]);
-	%disp(['Y_hat: ', mat2str(Y_hat(k,:))]);
-	%disp(['--------------------------------: ', num2str(k)]);
+	disp(['Observation #: ', num2str(k)]);
+	disp(['U: ', mat2str(U(k,:))]);
+	disp(['Y: ', mat2str(Y(k,:))]);
+	disp(['Theta_hat: ', mat2str(Theta_hat)]);
+	disp(['P: ', mat2str(P)]);
+	disp(['phi: ', mat2str(phi)]);
+	disp(['Y_hat: ', mat2str(Y_hat(k,:))]);
+	disp(['--------------------------------: ', num2str(k)]);
 end
 
