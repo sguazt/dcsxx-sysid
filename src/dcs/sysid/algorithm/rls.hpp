@@ -492,12 +492,7 @@ template <
  
 	// Update the Regression vector
 	work_vector_type phi_new(n_phi, 0);
-	// phi = [y_1(k-1) ... y_{n_y}(k-1) ... y_1(k-n_a) ... y_{n_y}(k-n_a) u_1(k-1) ... u_{n_u}(k-1) ... u_1(k-1-d) ... u_{n_u}(k-1-d) ... u_1(k-n_b-d) ... u_{n_u}(k-n_b-d)]^T
-	ublas::subrange(phi_new, 0, n_y) = -y;
-//	ublas::subrange(phi_new, n_y, n_y*n_a) = ublas::subrange(phi(), 0, n_y*(n_a-1));
-//	ublas::subrange(phi_new, n_y*n_a, n_y*n_a+n_u) = u;
-//	ublas::subrange(phi_new, n_y*n_a+n_u, n_phi) = ublas::subrange(phi(), n_y*n_a, n_phi-n_u);
-	// MATLAB uses the following convention for the regression vector:
+	// MATLAB uses the following form for the regression vector:
 	//  phi = [y_1(k-1) ... y_1(k-n_a) ... y_{n_y}(k-1) ... y_{n_y}(k-n_a) u_1(k-1) ... u_1(k-1-d) ... u_1(k-n_b-d) ... u_{n_u}(k-1) ... u_{n_u}(k-1-d) ... u_{n_u}(k-n_b-d)]^T
 	// According to this convention, \hat{\Theta} has the following meaning:
 	//   \hat{\Theta} = [a_{11}^{1},     a_{21}^{1},     ...,  a_{n_y1}^{1};
@@ -514,9 +509,28 @@ template <
 	//                   b_{1n_u}^{1},   b_{2n_u}^{1},   ...,  b_{n_yn_u}^{1};
 	//                   ...,            ...,            ...,  ...;
 	//                   b_{1n_u}^{n_b}, b_{2n_u}^{n_b}, ...,  b_{n_yn_u}^{n_b}]
-    ublas::subrange(phi_new, n_y, n_y*n_a) = ublas::subrange(phi(), 0, n_y*(n_a-1));
-    ublas::subslice(phi_new, n_y*n_a, n_b, n_u) = u;
-    ublas::subslice(phi_new, n_y*n_a+1, n_b, (n_b+d-1)*n_u) = ublas::subslice(phi(), n_y*n_a, n_b, (n_b+d-1)*n_u);
+	ublas::subslice(phi_new, 0, n_a, n_y) = -y;
+    //ublas::subrange(phi_new, n_y, n_y*n_a) = ublas::subrange(phi(), 0, n_y*(n_a-1));
+	for (size_type i = 1; i < n_a; ++i)
+	{
+    	ublas::subslice(phi_new, i, n_a, n_y) = ublas::subslice(phi(), i-1, n_a, n_y);
+	}
+	const size_type nytna(n_y*n_a);
+	const size_type nbpdm1(n_b+d-1);
+	ublas::subslice(phi_new, nytna, n_b, n_u) = u;
+//	ublas::subslice(phi_new, n_y*n_a+1, n_b, (n_b+d-1)*n_u) = ublas::subslice(phi(), n_y*n_a, n_b, (n_b+d-1)*n_u);
+	for (size_type i = 1; i < nbpdm1; ++i)
+	{
+		size_type start(nytna+i);
+    	ublas::subslice(phi_new, start, n_b, n_u) = ublas::subslice(phi(), start-1, n_b, n_u);
+	}
+	// Alternative form
+	// phi = [y_1(k-1) ... y_{n_y}(k-1) ... y_1(k-n_a) ... y_{n_y}(k-n_a) u_1(k-1) ... u_{n_u}(k-1) ... u_1(k-1-d) ... u_{n_u}(k-1-d) ... u_1(k-n_b-d) ... u_{n_u}(k-n_b-d)]^T
+//	ublas::subrange(phi_new, 0, n_y) = -y;
+//	ublas::subrange(phi_new, n_y, n_y*n_a) = ublas::subrange(phi(), 0, n_y*(n_a-1));
+//	ublas::subrange(phi_new, n_y*n_a, n_y*n_a+n_u) = u;
+//	ublas::subrange(phi_new, n_y*n_a+n_u, n_phi) = ublas::subrange(phi(), n_y*n_a, n_phi-n_u);
+
 	phi() = phi_new;
 //DCS_DEBUG_TRACE("[rarx_mimo] phi(k) = " << phi);//XXX
 
