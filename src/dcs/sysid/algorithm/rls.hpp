@@ -216,9 +216,10 @@ RealT rls_ff_arx_miso(RealT y,
 
 	// Create an auxiliary regression vector which takes into consideration the
 	// actual input delay d.
-	work_vector_type aux_phi(n);
+	work_vector_type aux_phi;
 	if (d > 0)
 	{
+		aux_phi.resize(n, false);
 		ublas::subrange(aux_phi, 0, n_a) = ublas::subrange(phi(), 0, n_a);
 		ublas::subrange(aux_phi, n_a, n) = ublas::subrange(phi(), n_a+d*n_u, n_phi);
 	}
