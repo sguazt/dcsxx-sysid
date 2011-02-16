@@ -252,6 +252,12 @@ RealT rls_ff_arx_miso(RealT y,
 			P
 		)
 		/ lambda;
+	// TODO: Should we use this trick
+	// Apply the Bittanti's correction.
+	//   S. Bittanti, P. Bolzern, and M. Campi.
+	//   Exponential convergence of a modified directional forgetting identification algorithm.
+	//   Systems & Control Letters, 14:131–137, 1990.
+	//P() = P()+0.01*ublas::identity_matrix<value_type>(n);
 //DCS_DEBUG_TRACE("[rarx_miso] P(k) = " << P);//XXX
 
 	// Compute output estimate
@@ -474,6 +480,12 @@ template <
 			P
 		)
 		/ lambda;
+	// TODO: Should we use this trick
+	// Apply the Bittanti's correction.
+	//   S. Bittanti, P. Bolzern, and M. Campi.
+	//   Exponential convergence of a modified directional forgetting identification algorithm.
+	//   Systems & Control Letters, 14:131–137, 1990.
+	//P() = P()+0.01*ublas::identity_matrix<value_type>(n);
 //DCS_DEBUG_TRACE("[rarx_mimo] P(k) = " << P);//XXX
 
 	// Compute the output estimate
