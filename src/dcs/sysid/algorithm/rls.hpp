@@ -109,6 +109,13 @@ void rls_arx_miso_init(UIntT n_a,
 //		d > 0,
 //		throw ::std::invalid_argument("[dcs::sysid::rls_arx_miso_init] Input delay must be greater than zero.")
 //	);
+	// pre: d > 0
+	DCS_ASSERT(
+		d > 0,
+		throw ::std::invalid_argument("[dcs::sysid::rls_ff_arx_miso] The input delay cannot be less than 1.")
+	);
+
+	--d;
 
 ////	size_type n = n_a*n_y+(n_b+1)*n_u+d;
 ////	size_type n = n_a+(n_b+d+1)*n_u;
@@ -196,6 +203,11 @@ RealT rls_ff_arx_miso(RealT y,
 	const size_type n_phi(ublasx::size(phi));
 	const size_type n_u(ublasx::size(u));
 
+	// pre: d > 0
+	DCS_ASSERT(
+		d > 0,
+		throw ::std::invalid_argument("[dcs::sysid::rls_ff_arx_miso] The input delay cannot be less than 1.")
+	);
 	// pre: size(theta_hat) == n_a+n_b*n_u
 	DCS_ASSERT(
 		n == (n_a+n_b*n_u),
@@ -208,11 +220,12 @@ RealT rls_ff_arx_miso(RealT y,
 	);
 	// pre: size(phi) == n_a+(n_b+d)*n_u
 	DCS_ASSERT(
-		//n == (n_a+(n_b+1)*n_u+d),
-		//n == (n_a+(n_b+d+1)*n_u),
-		n_phi == (n_a+(n_b+d)*n_u),
+		//n_phi == (n_a+(n_b+d)*n_u),
+		n_phi == (n_a+(n_b+d-1)*n_u),
 		throw ::std::invalid_argument("[dcs::sysid::rls_ff_arx_miso] The regression vector has an invalid size.")
 	);
+
+	--d;
 
 	// Create an auxiliary regression vector which takes into consideration the
 	// actual input delay d.
@@ -221,13 +234,18 @@ RealT rls_ff_arx_miso(RealT y,
 	{
 		aux_phi.resize(n, false);
 		ublas::subrange(aux_phi, 0, n_a) = ublas::subrange(phi(), 0, n_a);
-		ublas::subrange(aux_phi, n_a, n) = ublas::subrange(phi(), n_a+d*n_u, n_phi);
+		//ublas::subrange(aux_phi, n_a, n) = ublas::subrange(phi(), n_a+d*n_u, n_phi);
+		for (size_type i = n_a; i < n; i += n_b+d)
+		{
+			size_type k(i+n_b);
+			ublas::subrange(aux_phi, i, k) = ublas::subrange(phi(), i+d, k+d);
+		}
 	}
 	else
 	{
 		aux_phi = phi;
 	}
-//DCS_DEBUG_TRACE("[rarx_miso] aux_phi(k) = " << aux_phi);//XXX
+DCS_DEBUG_TRACE("[rarx_miso] aux_phi(k) = " << aux_phi);//XXX
 
 	// Compute the Gain
 	// l(k+1) = \frac{P(k)\phi(k+1)}{\lambda(k)+\phi^T(k+1)P(k)\phi(k+1)}
@@ -240,25 +258,28 @@ RealT rls_ff_arx_miso(RealT y,
 				aux_phi
 			)
 	);
-//DCS_DEBUG_TRACE("[rarx_miso] l(k) = " << l);//XXX
+DCS_DEBUG_TRACE("[rarx_miso] l(k) = " << l);//XXX
 
 	// Update the covariance matrix
 	// P(k+1) = \frac{1}{\lambda(k)}\left[P(k)-l(k+1)\Phi^T(k+1)P(k)\right]
 //	P() = (P - ublas::prod(ublas::outer_prod(l, aux_phi), P)) / lambda;
-	P() = ublas::prod(
-			ublas::identity_matrix<value_type>(n)
-			-
-			ublas::outer_prod(l, aux_phi),
-			P
-		)
-		/ lambda;
+	//value_type check_cov((value_type(1)/(lambda+ublas::inner_prod(ublas::prod(aux_phi, P), aux_phi)))*(::std::pow(ublas::inner_prod(theta_hat, aux_phi),2)));
+	//bool safe_cov(check_cox >= 0.001);
+//	P() = ublas::prod(
+//			ublas::identity_matrix<value_type>(n)
+//			-
+//			ublas::outer_prod(l, aux_phi),
+//			P
+//		)
+//		/ lambda;
+	P() = (P - ublas::prod(ublas::outer_prod(l, aux_phi), P)) / lambda;
 	// TODO: Should we use this trick
 	// Apply the Bittanti's correction.
 	//   S. Bittanti, P. Bolzern, and M. Campi.
 	//   Exponential convergence of a modified directional forgetting identification algorithm.
 	//   Systems & Control Letters, 14:131–137, 1990.
 	//P() = P()+0.01*ublas::identity_matrix<value_type>(n);
-//DCS_DEBUG_TRACE("[rarx_miso] P(k) = " << P);//XXX
+DCS_DEBUG_TRACE("[rarx_miso] P(k) = " << P);//XXX
 
 	// Compute output estimate
 	value_type y_hat = ublas::inner_prod(theta_hat, aux_phi);
@@ -266,7 +287,7 @@ RealT rls_ff_arx_miso(RealT y,
 	// Update parameters estimate
 	// \hat{\theta}(k+1) = \hat{\theta}(k)+(y(k+1)-\Phi^T(k+1)\hat{\theta}(k))l^T(k+1)
 	theta_hat() = theta_hat + (y-y_hat)*l;
-//DCS_DEBUG_TRACE("[rarx_miso] theta_hat(k) = " << theta_hat);//XXX
+DCS_DEBUG_TRACE("[rarx_miso] theta_hat(k) = " << theta_hat);//XXX
 
 	// Clean-up unused memory
 	aux_phi.resize(0, false);
@@ -283,8 +304,15 @@ RealT rls_ff_arx_miso(RealT y,
 	// MATLAB uses this convention for the regression vector:
 	// phi = [y(k-1) ... y(k-n_a) u_1(k-1) ... u_1(k-1-d) ... u_1(k-n_b-d) ... u_{n_u}(k-1) ... u_{n_u}(k-1-d) ... u_{n_u}(k-n_b-d)]^T
 	ublas::subrange(phi_new, 1, n_a) = ublas::subrange(phi(), 0, n_a-1);
-	ublas::subslice(phi_new, n_a, n_b, n_u) = u;
-	ublas::subslice(phi_new, n_a+1, n_b, (n_b+d-1)*n_u) = ublas::subslice(phi(), n_a, n_b, (n_b+d-1)*n_u);
+//	ublas::subslice(phi_new, n_a, n_b, n_u) = u;
+	ublas::subslice(phi_new, n_a, n_b+d, n_u) = u;
+//	ublas::subslice(phi_new, n_a+1, n_b, (n_b+d-1)*n_u) = ublas::subslice(phi(), n_a, n_b, (n_b+d-1)*n_u);
+	//for (size_type i = n_a; i < (n_b+d-1)*n_u; i += n_b+d)
+	for (size_type i = n_a; i < n_phi; i += n_b+d)
+	{
+		size_type k(i+n_b+d-1);
+		ublas::subrange(phi_new, i+1, k+1) = ublas::subrange(phi(), i, k);
+	}
 	phi() = phi_new;
 //DCS_DEBUG_TRACE("[rarx_miso] phi(k) = " << phi);//XXX
 
@@ -473,6 +501,8 @@ template <
 
 	// Update the covariance matrix
 	//  P(k+1) = \frac{1}{\lambda(k)}\left[I-l(k+1)\Phi^T(k+1)\right]P(k)
+	// value_type check_cov((value_type(1)/(lambda+ublas::inner_prod(ublas::prod(aux_phi, P), aux_phi)))*ublas::inner_prod(ublas::prod(ublas::trans(Theta_hat), aux_phi),ublas::prod(ublas::trans(Theta_hat), aux_phi)));
+	// bool safe_cov(check_cov >= 0.001);
 	P() = ublas::prod(
 			ublas::identity_matrix<value_type>(n)
 			-
