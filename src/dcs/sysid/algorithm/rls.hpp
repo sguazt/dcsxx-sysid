@@ -258,6 +258,14 @@ DCS_DEBUG_TRACE("[rarx_miso] aux_phi(k) = " << aux_phi);//XXX
 				aux_phi
 			)
 	);
+//	l = ublas::prec_prod(P, aux_phi)
+//		/ (
+//			lambda
+//			+ ublas::inner_prod(
+//				ublas::prec_prod(aux_phi, P),
+//				aux_phi
+//			)
+//	);
 DCS_DEBUG_TRACE("[rarx_miso] l(k) = " << l);//XXX
 
 	// Update the covariance matrix
@@ -273,6 +281,7 @@ DCS_DEBUG_TRACE("[rarx_miso] l(k) = " << l);//XXX
 //		)
 //		/ lambda;
 	P() = (P - ublas::prod(ublas::outer_prod(l, aux_phi), P)) / lambda;
+//	P() = (P - ublas::prec_prod(ublas::outer_prod(l, aux_phi), P)) / lambda;
 	// TODO: Should we use this trick
 	// Apply the Bittanti's correction.
 	//   S. Bittanti, P. Bolzern, and M. Campi.
@@ -282,11 +291,11 @@ DCS_DEBUG_TRACE("[rarx_miso] l(k) = " << l);//XXX
 DCS_DEBUG_TRACE("[rarx_miso] P(k) = " << P);//XXX
 
 	// Compute output estimate
-	value_type y_hat = ublas::inner_prod(theta_hat, aux_phi);
+	value_type y_hat = ublas::inner_prod(aux_phi, theta_hat);
 
 	// Update parameters estimate
 	// \hat{\theta}(k+1) = \hat{\theta}(k)+(y(k+1)-\Phi^T(k+1)\hat{\theta}(k))l^T(k+1)
-	theta_hat() = theta_hat + (y-y_hat)*l;
+	theta_hat() = theta_hat + l*(y-y_hat);
 DCS_DEBUG_TRACE("[rarx_miso] theta_hat(k) = " << theta_hat);//XXX
 
 	// Clean-up unused memory
