@@ -1241,6 +1241,89 @@ DCS_TEST_DEF( rarx_mimo_with_noise )
 //}
 
 
+DCS_TEST_DEF( rarx_miso_all_equal )
+{
+	DCS_DEBUG_TRACE("Test Case: MISO system with ARX structure and with no changing values");
+
+	typedef double real_type;
+	typedef ::std::size_t size_type;
+	typedef ublas::matrix<real_type> matrix_type;
+	typedef ublas::vector<real_type> vector_type;
+
+	const size_type n_obs = 2000; // # observations
+	const size_type n_a = 2; // the order of the ARX model
+	const size_type n_b = 2; // the order of the ARX model
+	const size_type n_u = 3; // the size of input vector
+	const size_type d = 1; // the input delay
+	const real_type ff = 0.98; // the forgetting factor
+
+	matrix_type U(ublas::scalar_matrix<real_type>(n_obs, n_u, real_type(5)/real_type(11)));
+
+
+	vector_type y(ublas::scalar_vector<real_type>(n_obs, 1.5));
+
+
+	vector_type y_hat_ok(n_obs);
+
+	vector_type theta_hat; //(n_y, n1);
+	matrix_type P; //(n2,n2);
+	vector_type phi; //(n2);
+
+	::dcs::sysid::rls_arx_miso_init(n_a, n_b, d, n_u, theta_hat, P, phi);
+
+	DCS_DEBUG_TRACE( "theta0_hat: " << theta_hat );
+	DCS_DEBUG_TRACE( "P0: " << P );
+	DCS_DEBUG_TRACE( "phi0: " << phi );
+
+	vector_type y_hat(n_obs);
+	for (size_type i = 0; i < n_obs; ++i)
+	{
+DCS_DEBUG_TRACE("HERE.0");//XXX
+		real_type yy(y(i));
+DCS_DEBUG_TRACE("HERE.0.1");//XXX
+		vector_type u(ublas::row(U, i));
+DCS_DEBUG_TRACE("HERE.0.2");//XXX
+		real_type yy_hat;
+
+DCS_DEBUG_TRACE("HERE.1");//XXX
+		yy_hat = ::dcs::sysid::rls_ff_arx_miso(
+			yy,
+			u,
+			ff,
+			n_a,
+			n_b,
+			d,
+			theta_hat,
+			P,
+			phi
+		);
+DCS_DEBUG_TRACE("HERE.2");//XXX
+		y_hat(i) = yy_hat;
+DCS_DEBUG_TRACE("HERE.3");//XXX
+
+		DCS_DEBUG_TRACE( ">> Observation #" << i );
+		DCS_DEBUG_TRACE( ">>" << i << " --> u: " << u );
+		DCS_DEBUG_TRACE( ">>" << i << " --> y: " << yy );
+		DCS_DEBUG_TRACE( ">>" << i << " --> theta_hat: " << theta_hat );
+		DCS_DEBUG_TRACE( ">>" << i << " --> P: " << P );
+		DCS_DEBUG_TRACE( ">>" << i << " --> phi: " << phi );
+		DCS_DEBUG_TRACE( ">>" << i << " --> y_hat: " << yy_hat );
+		DCS_DEBUG_TRACE( ">>" << i << " --> y_hat_ok: " << y_hat_ok(i) );
+		DCS_DEBUG_TRACE( ">>" << i << " --> r.e.: " << ((yy_hat-yy)/ yy) );
+		DCS_DEBUG_TRACE( "----------------------------------------" << i );
+
+//		for (size_type j = 0; j < n_y; ++j)
+//		{
+//			DCS_TEST_CHECK_REL_CLOSE(y_hat(j), Y_hat_ok(i,j), 1.0e-5);
+//		}
+	}
+	::std::cerr.precision(11);
+	DCS_DEBUG_TRACE( "y_hat_ok: " << y_hat_ok );
+	DCS_DEBUG_TRACE( "y_hat: " << y_hat );
+	DCS_TEST_CHECK_VECTOR_CLOSE(y_hat, y_hat_ok, n_obs, tol);
+}
+
+
 int main()
 {
 	DCS_TEST_SUITE("Test suite for Recursive Least-Square algorithms");
@@ -1252,6 +1335,8 @@ int main()
 	DCS_TEST_DO( rarx_siso_with_noise );
 
 	DCS_TEST_DO( rarx_miso_without_noise );
+
+	DCS_TEST_DO( rarx_miso_all_equal );
 
 //	DCS_TEST_DO( rarx_miso_with_noise );
 
