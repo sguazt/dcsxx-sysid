@@ -129,7 +129,7 @@ void rls_arx_miso_init(UIntT n_a,
 
 
 /**
- * \brief Execute one step of the Recursive Least-Square with forgetting factor
+ * \brief Execute one step of the Recursive Least-Square with Forgetting Factor
  *  algorithm for MISO system models with ARX structure.
  *
  * \tparam RealT The type for real numbers.
@@ -296,6 +296,465 @@ DCS_DEBUG_TRACE("[rarx_miso] P(k) = " << P);//XXX
 	// Update parameters estimate
 	// \hat{\theta}(k+1) = \hat{\theta}(k)+(y(k+1)-\Phi^T(k+1)\hat{\theta}(k))l^T(k+1)
 	theta_hat() = theta_hat + l*(y-y_hat);
+DCS_DEBUG_TRACE("[rarx_miso] theta_hat(k) = " << theta_hat);//XXX
+
+	// Clean-up unused memory
+	aux_phi.resize(0, false);
+	l.resize(0, false);
+
+	// Update the Regression vector
+	work_vector_type phi_new(n_phi, 0);
+	phi_new(0) = -y;
+	// phi = [y(k-1) ... y(k-n_a) u_1(k-1) ... u_{n_u}(k-1) ... u_1(k-1-d) ... u_{n_u}(k-1-d) ... u_1(k-n_b-d) ... u_{n_u}(k-n_b-d)]^T
+//	ublas::subrange(phi_new, 1, n_a) = ublas::subrange(phi(), 0, n_a-1);
+//	ublas::subrange(phi_new, n_a, n_a+n_u) = u;
+//	ublas::subrange(phi_new, n_a+n_u, n_phi) = ublas::subrange(phi(), n_a, n_phi-n_u);
+
+	// MATLAB uses this convention for the regression vector:
+	// phi = [y(k-1) ... y(k-n_a) u_1(k-1) ... u_1(k-1-d) ... u_1(k-n_b-d) ... u_{n_u}(k-1) ... u_{n_u}(k-1-d) ... u_{n_u}(k-n_b-d)]^T
+	ublas::subrange(phi_new, 1, n_a) = ublas::subrange(phi(), 0, n_a-1);
+//	ublas::subslice(phi_new, n_a, n_b, n_u) = u;
+	ublas::subslice(phi_new, n_a, n_b+d, n_u) = u;
+//	ublas::subslice(phi_new, n_a+1, n_b, (n_b+d-1)*n_u) = ublas::subslice(phi(), n_a, n_b, (n_b+d-1)*n_u);
+	//for (size_type i = n_a; i < (n_b+d-1)*n_u; i += n_b+d)
+	for (size_type i = n_a; i < n_phi; i += n_b+d)
+	{
+		size_type k(i+n_b+d-1);
+		ublas::subrange(phi_new, i+1, k+1) = ublas::subrange(phi(), i, k);
+	}
+	phi() = phi_new;
+//DCS_DEBUG_TRACE("[rarx_miso] phi(k) = " << phi);//XXX
+
+	return y_hat;
+}
+
+
+/**
+ * \brief Execute one step of the Recursive Least-Square with Directional
+ *  Forgetting algorithm for MISO system models with ARX structure.
+ *
+ * \tparam RealT The type for real numbers.
+ * \tparam UIntT The type for unsigned integral numbers.
+ * \tparam VectorT The type for vectors.
+ * \tparam MatrixT The type for matrices.
+ *
+ * \param y The current measurement (output) vector.
+ * \param u The current regressor (input) vector.
+ * \param lambda The forgetting factor.
+ * \param n_a The memory of the ARX model with respect to the output variables.
+ * \param n_b The memory of the ARX model with respect to the input variables.
+ * \param d The delay of the ARX model.
+ * \param theta_hat The current parameter estimate matrix.
+ * \param P Covariance matrix.
+ * \param phi The current regression vector.
+ * \return The output estimate \f$\hat{y}\f$. Furthermore, matrix \a theta_hat,
+ *  matrix \a P and vector \a phi are changed in order to reflect the current
+ *  RLS update step.
+ * \param delta A multiplication factor used for applying the
+ *  Bittanti's correction [2]. The correction is applied only for values
+ *  of \a delta greater than zero.
+ *
+ * This variant of the RLS algorithm uses a time-varying forgetting factor and
+ * it is based on [1,2].
+ *
+ * References:
+ * -# R. Kulhavy, M. Karny.
+ *    "Tracking of Slowly Varying Parameters by Directional Forgetting",
+ *    IFAC Proc. Ser. 1985, 687-692.
+ * -# S. Bittanti, P. Bolzern, M. Campi.
+ *    "Exponential Convergence of a Modified Directional Forgetting
+ *     Identification Algorithm",
+ *    Syst. Control Lett. 1990, 14, 131-137.
+ * .
+ */
+template <
+	typename RealT,
+	typename UVectorExprT,
+	typename UIntT,
+	typename ThetaVectorExprT,
+	typename PMatrixExprT,
+	typename PhiVectorExprT
+>
+RealT rls_bittanti1990_arx_miso(RealT y,
+								::boost::numeric::ublas::vector_expression<UVectorExprT> const& u,
+								RealT lambda,
+								UIntT n_a,
+								UIntT n_b,
+								UIntT d,
+								::boost::numeric::ublas::vector_expression<ThetaVectorExprT>& theta_hat,
+								::boost::numeric::ublas::matrix_expression<PMatrixExprT>& P,
+								::boost::numeric::ublas::vector_expression<PhiVectorExprT>& phi,
+								RealT delta = RealT/*zero*/())
+{
+	namespace ublas = ::boost::numeric::ublas;
+	namespace ublasx = ::boost::numeric::ublasx;
+
+	typedef typename ublas::promote_traits<
+					typename ublas::promote_traits<
+							typename ublas::promote_traits<
+									typename ublas::promote_traits<
+											RealT,
+											typename ublas::vector_traits<UVectorExprT>::value_type
+										>::promote_type,
+									typename ublas::vector_traits<ThetaVectorExprT>::value_type
+								>::promote_type,
+							typename ublas::matrix_traits<PMatrixExprT>::value_type
+						>::promote_type,
+					typename ublas::vector_traits<PhiVectorExprT>::value_type
+				>::promote_type value_type;
+	typedef typename ublas::promote_traits<
+					typename ublas::promote_traits<
+							typename ublas::promote_traits<
+									typename ublas::promote_traits<
+											UIntT,
+											typename ublas::vector_traits<UVectorExprT>::size_type
+										>::promote_type,
+									typename ublas::vector_traits<ThetaVectorExprT>::size_type
+								>::promote_type,
+							typename ublas::matrix_traits<PMatrixExprT>::size_type
+						>::promote_type,
+					typename ublas::vector_traits<PhiVectorExprT>::size_type
+				>::promote_type size_type;
+	typedef ublas::vector<value_type> work_vector_type;
+
+	const size_type n(ublasx::size(theta_hat));
+	const size_type n_phi(ublasx::size(phi));
+	const size_type n_u(ublasx::size(u));
+
+	// pre: d > 0
+	DCS_ASSERT(
+			d > 0,
+			throw ::std::invalid_argument("[dcs::sysid::rls_df_arx_miso] The input delay cannot be less than 1.")
+		);
+	// pre: size(theta_hat) == n_a+n_b*n_u
+	DCS_ASSERT(
+			n == (n_a+n_b*n_u),
+			throw ::std::invalid_argument("[dcs::sysid::rls_df_arx_miso] The parameter vector has an invalid size.")
+		);
+	// pre: P is a square matrix of order n
+	DCS_ASSERT(
+			ublasx::num_rows(P) == n && ublasx::num_columns(P) == n,
+			throw ::std::invalid_argument("[dcs::sysid::rls_df_arx_miso] The covariance matrix has an invalid size.")
+		);
+	// pre: size(phi) == n_a+(n_b+d)*n_u
+	DCS_ASSERT(
+			//n_phi == (n_a+(n_b+d)*n_u),
+			n_phi == (n_a+(n_b+d-1)*n_u),
+			throw ::std::invalid_argument("[dcs::sysid::rls_df_arx_miso] The regression vector has an invalid size.")
+		);
+	// pre: delta >= 0
+	DCS_ASSERT(
+			delta >= 0,
+			throw ::std::invalid_argument("[dcs::sysid::rls_df_arx_miso] The Bittanti's correction factor must be greater than or equal to 0.")
+		);
+
+	--d;
+
+	// Create an auxiliary regression vector which takes into consideration the
+	// actual input delay d.
+	work_vector_type aux_phi;
+	if (d > 0)
+	{
+		aux_phi.resize(n, false);
+		ublas::subrange(aux_phi, 0, n_a) = ublas::subrange(phi(), 0, n_a);
+		//ublas::subrange(aux_phi, n_a, n) = ublas::subrange(phi(), n_a+d*n_u, n_phi);
+		for (size_type i = n_a; i < n; i += n_b+d)
+		{
+			size_type k(i+n_b);
+			ublas::subrange(aux_phi, i, k) = ublas::subrange(phi(), i+d, k+d);
+		}
+	}
+	else
+	{
+		aux_phi = phi;
+	}
+DCS_DEBUG_TRACE("[rarx_miso] aux_phi(k) = " << aux_phi);//XXX
+
+	// Compute output estimate
+	value_type y_hat = ublas::inner_prod(aux_phi, theta_hat);
+
+	// Compute the prediction error
+	value_type epsi = y-y_hat;
+
+	// Compute r(k+1) = \phi^T(k+1)P(k)\phi(k+1)
+	value_type r = ublas::inner_prod(
+			ublas::prod(aux_phi, P),
+			aux_phi
+		);
+
+	// Compute the Gain
+	// l(k+1) = \frac{P(k)\phi(k+1)}{1+r(k+1)}
+	work_vector_type l = ublas::prod(P, aux_phi) / (1+r);
+DCS_DEBUG_TRACE("[rarx_miso] l(k) = " << l);//XXX
+
+	// Update parameters estimate
+	// \hat{\theta}(k+1) = \hat{\theta}(k)+(y(k+1)-\Phi^T(k+1)\hat{\theta}(k))l^T(k+1)
+	theta_hat() = theta_hat + l*epsi;
+DCS_DEBUG_TRACE("[rarx_miso] theta_hat(k) = " << theta_hat);//XXX
+
+	// Compute the Directional Forgetting factor
+	// \beta(k+1) = \begin{cases}
+	//               \lambda-\frac{1-\lambda}{r(k+1)}, & r(k+1)>0
+	//               1, & r(k+1)=0
+	//              \end{cases}
+	value_type beta = (r > 0) ? (lambda-(1-lambda)/r) : 1;;
+
+	// Update the covariance matrix
+	// P(k+1) = P(k)-\frac{P(k)\phi^T(k+1)\phi(k+1)P(k)}{\beta(k+1)^{-1}+r(k+1)}+\delta I
+	//P() = P - ublas::prod(ublas::outer_prod(ublas::prod(P, aux_phi), aux_phi), P) / (static_cast<value_type>(1)/beta+r);
+	work_vector_type t = ublas::prod(P, aux_phi);
+	P() = P - ublas::prod(ublas::outer_prod(t, aux_phi), P) / (static_cast<value_type>(1)/beta+r);
+	if (delta > 0)
+	{
+		// Apply the Bittanti's correction.
+		P() += delta*ublas::identity_matrix<value_type>(n);
+	}
+DCS_DEBUG_TRACE("[rarx_miso] P(k) = " << P);//XXX
+
+	// Clean-up unused memory
+	t.resize(0, false);
+	l.resize(0, false);
+	aux_phi.resize(0, false);
+
+	// Update the Regression vector
+	work_vector_type phi_new(n_phi, 0);
+	phi_new(0) = -y;
+	// phi = [y(k-1) ... y(k-n_a) u_1(k-1) ... u_{n_u}(k-1) ... u_1(k-1-d) ... u_{n_u}(k-1-d) ... u_1(k-n_b-d) ... u_{n_u}(k-n_b-d)]^T
+//	ublas::subrange(phi_new, 1, n_a) = ublas::subrange(phi(), 0, n_a-1);
+//	ublas::subrange(phi_new, n_a, n_a+n_u) = u;
+//	ublas::subrange(phi_new, n_a+n_u, n_phi) = ublas::subrange(phi(), n_a, n_phi-n_u);
+
+	// MATLAB uses this convention for the regression vector:
+	// phi = [y(k-1) ... y(k-n_a) u_1(k-1) ... u_1(k-1-d) ... u_1(k-n_b-d) ... u_{n_u}(k-1) ... u_{n_u}(k-1-d) ... u_{n_u}(k-n_b-d)]^T
+	ublas::subrange(phi_new, 1, n_a) = ublas::subrange(phi(), 0, n_a-1);
+//	ublas::subslice(phi_new, n_a, n_b, n_u) = u;
+	ublas::subslice(phi_new, n_a, n_b+d, n_u) = u;
+//	ublas::subslice(phi_new, n_a+1, n_b, (n_b+d-1)*n_u) = ublas::subslice(phi(), n_a, n_b, (n_b+d-1)*n_u);
+	//for (size_type i = n_a; i < (n_b+d-1)*n_u; i += n_b+d)
+	for (size_type i = n_a; i < n_phi; i += n_b+d)
+	{
+		size_type k(i+n_b+d-1);
+		ublas::subrange(phi_new, i+1, k+1) = ublas::subrange(phi(), i, k);
+	}
+	phi() = phi_new;
+//DCS_DEBUG_TRACE("[rarx_miso] phi(k) = " << phi);//XXX
+
+	return y_hat;
+}
+
+
+/**
+ * \brief Execute one step of the Recursive Least-Square with Directional
+ *  Forgetting algorithm for MISO system models with ARX structure.
+ *
+ * \tparam RealT The type for real numbers.
+ * \tparam UIntT The type for unsigned integral numbers.
+ * \tparam VectorT The type for vectors.
+ * \tparam MatrixT The type for matrices.
+ *
+ * \param y The current measurement (output) vector.
+ * \param u The current regressor (input) vector.
+ * \param lambda The forgetting factor.
+ * \param n_a The memory of the ARX model with respect to the output variables.
+ * \param n_b The memory of the ARX model with respect to the input variables.
+ * \param d The delay of the ARX model.
+ * \param theta_hat The current parameter estimate matrix.
+ * \param P Covariance matrix.
+ * \param phi The current regression vector.
+ * \return The output estimate \f$\hat{y}\f$. Furthermore, matrix \a theta_hat,
+ *  matrix \a P and vector \a phi are changed in order to reflect the current
+ *  RLS update step.
+ *
+ * This variant of the RLS algorithm uses a time-varying forgetting factor and
+ * it is based on [1].
+ *
+ * References:
+ * -# R. Kulhavy, M. Karny.
+ *    "Tracking of Slowly Varying Parameters by Directional Forgetting",
+ *    IFAC Proc. Ser. 1985, 687-692.
+ * .
+ */
+template <
+	typename RealT,
+	typename UVectorExprT,
+	typename UIntT,
+	typename ThetaVectorExprT,
+	typename PMatrixExprT,
+	typename PhiVectorExprT
+>
+RealT rls_kulhavy1984_arx_miso(RealT y,
+							   ::boost::numeric::ublas::vector_expression<UVectorExprT> const& u,
+							   RealT lambda,
+							   UIntT n_a,
+							   UIntT n_b,
+							   UIntT d,
+							   ::boost::numeric::ublas::vector_expression<ThetaVectorExprT>& theta_hat,
+							   ::boost::numeric::ublas::matrix_expression<PMatrixExprT>& P,
+							   ::boost::numeric::ublas::vector_expression<PhiVectorExprT>& phi)
+{
+	return rls_bittanti1990_arx_miso(y, u, lambda, n_a, n_b, d, theta_hat, P, phi, 0);
+}
+
+
+/**
+ * \brief Execute one step of the Exponential Weighting Recursive Least-Square
+ *  algorithm for MISO system models with ARX structure.
+ *
+ * \tparam RealT The type for real numbers.
+ * \tparam UIntT The type for unsigned integral numbers.
+ * \tparam VectorT The type for vectors.
+ * \tparam MatrixT The type for matrices.
+ *
+ * \param y The current measurement (output) vector.
+ * \param u The current regressor (input) vector.
+ * \param lambda The minimum value for the forgetting factor.
+ * \param rho A design parameter (see [1]).
+ * \param n_a The memory of the ARX model with respect to the output variables.
+ * \param n_b The memory of the ARX model with respect to the input variables.
+ * \param d The delay of the ARX model.
+ * \param theta_hat The current parameter estimate matrix.
+ * \param P Covariance matrix.
+ * \param phi The current regression vector.
+ * \return The output estimate \f$\hat{y}\f$. Furthermore, matrix \a theta_hat,
+ *  matrix \a P and vector \a phi are changed in order to reflect the current
+ *  RLS update step.
+ *
+ * This variant of the RLS algorithm uses a time-varying forgetting factor and
+ * it is based on [1,2].
+ *
+ * References:
+ * -# D.J. Park, B.E. Jun, J.H. Kim,
+ *    "Fast Tracking RLS Algorithm using Novel Variable Forgetting Factor with Unity Zone",
+ *    Elettron. Lett. 1991, 27, 2150-2151.
+ * .
+ */
+template <
+	typename RealT,
+	typename UVectorExprT,
+	typename UIntT,
+	typename ThetaVectorExprT,
+	typename PMatrixExprT,
+	typename PhiVectorExprT
+>
+RealT rls_part1991_arx_miso(RealT y,
+							::boost::numeric::ublas::vector_expression<UVectorExprT> const& u,
+							RealT lambda,
+							RealT rho,
+							UIntT n_a,
+							UIntT n_b,
+							UIntT d,
+							::boost::numeric::ublas::vector_expression<ThetaVectorExprT>& theta_hat,
+							::boost::numeric::ublas::matrix_expression<PMatrixExprT>& P,
+							::boost::numeric::ublas::vector_expression<PhiVectorExprT>& phi)
+{
+	namespace ublas = ::boost::numeric::ublas;
+	namespace ublasx = ::boost::numeric::ublasx;
+
+	typedef typename ublas::promote_traits<
+					typename ublas::promote_traits<
+							typename ublas::promote_traits<
+									typename ublas::promote_traits<
+											RealT,
+											typename ublas::vector_traits<UVectorExprT>::value_type
+										>::promote_type,
+									typename ublas::vector_traits<ThetaVectorExprT>::value_type
+								>::promote_type,
+							typename ublas::matrix_traits<PMatrixExprT>::value_type
+						>::promote_type,
+					typename ublas::vector_traits<PhiVectorExprT>::value_type
+				>::promote_type value_type;
+	typedef typename ublas::promote_traits<
+					typename ublas::promote_traits<
+							typename ublas::promote_traits<
+									typename ublas::promote_traits<
+											UIntT,
+											typename ublas::vector_traits<UVectorExprT>::size_type
+										>::promote_type,
+									typename ublas::vector_traits<ThetaVectorExprT>::size_type
+								>::promote_type,
+							typename ublas::matrix_traits<PMatrixExprT>::size_type
+						>::promote_type,
+					typename ublas::vector_traits<PhiVectorExprT>::size_type
+				>::promote_type size_type;
+	typedef ublas::vector<value_type> work_vector_type;
+
+	const size_type n(ublasx::size(theta_hat));
+	const size_type n_phi(ublasx::size(phi));
+	const size_type n_u(ublasx::size(u));
+
+	// pre: d > 0
+	DCS_ASSERT(
+		d > 0,
+		throw ::std::invalid_argument("[dcs::sysid::rls_ff_arx_miso] The input delay cannot be less than 1.")
+	);
+	// pre: size(theta_hat) == n_a+n_b*n_u
+	DCS_ASSERT(
+		n == (n_a+n_b*n_u),
+		throw ::std::invalid_argument("[dcs::sysid::rls_ff_arx_miso] The parameter vector has an invalid size.")
+	);
+	// pre: P is a square matrix of order n
+	DCS_ASSERT(
+		ublasx::num_rows(P) == n && ublasx::num_columns(P) == n,
+		throw ::std::invalid_argument("[dcs::sysid::rls_ff_arx_miso] The covariance matrix has an invalid size.")
+	);
+	// pre: size(phi) == n_a+(n_b+d)*n_u
+	DCS_ASSERT(
+		//n_phi == (n_a+(n_b+d)*n_u),
+		n_phi == (n_a+(n_b+d-1)*n_u),
+		throw ::std::invalid_argument("[dcs::sysid::rls_ff_arx_miso] The regression vector has an invalid size.")
+	);
+
+	--d;
+
+	// Create an auxiliary regression vector which takes into consideration the
+	// actual input delay d.
+	work_vector_type aux_phi;
+	if (d > 0)
+	{
+		aux_phi.resize(n, false);
+		ublas::subrange(aux_phi, 0, n_a) = ublas::subrange(phi(), 0, n_a);
+		//ublas::subrange(aux_phi, n_a, n) = ublas::subrange(phi(), n_a+d*n_u, n_phi);
+		for (size_type i = n_a; i < n; i += n_b+d)
+		{
+			size_type k(i+n_b);
+			ublas::subrange(aux_phi, i, k) = ublas::subrange(phi(), i+d, k+d);
+		}
+	}
+	else
+	{
+		aux_phi = phi;
+	}
+DCS_DEBUG_TRACE("[rarx_miso] aux_phi(k) = " << aux_phi);//XXX
+
+	// Compute output estimate
+	value_type y_hat = ublas::inner_prod(aux_phi, theta_hat);
+
+	// Compute the prediction error
+	value_type epsi = y-y_hat;
+
+	// Compute the time-varying forgetting factor
+	lambda = lambda+(1-lambda)*::std::pow(2, -::round(rho*epsi*epsi));
+
+	// Compute the Gain
+	// l(k+1) = \frac{P(k)\phi(k+1)}{\lambda(k)+\phi^T(k+1)P(k)\phi(k+1)}
+	work_vector_type l(n);
+	l = ublas::prod(P, aux_phi)
+		/ (
+			lambda
+			+ ublas::inner_prod(
+				ublas::prod(aux_phi, P),
+				aux_phi
+			)
+	);
+DCS_DEBUG_TRACE("[rarx_miso] l(k) = " << l);//XXX
+
+	// Update the covariance matrix
+	P() = (P - ublas::prod(ublas::outer_prod(l, aux_phi), P)) / lambda;
+DCS_DEBUG_TRACE("[rarx_miso] P(k) = " << P);//XXX
+
+	// Update parameters estimate
+	// \hat{\theta}(k+1) = \hat{\theta}(k)+(y(k+1)-\Phi^T(k+1)\hat{\theta}(k))l^T(k+1)
+	theta_hat() = theta_hat + l*epsi;
 DCS_DEBUG_TRACE("[rarx_miso] theta_hat(k) = " << theta_hat);//XXX
 
 	// Clean-up unused memory
