@@ -636,7 +636,7 @@ template <
 	typename PMatrixExprT,
 	typename PhiVectorExprT
 >
-RealT rls_part1991_arx_miso(RealT y,
+RealT rls_park1991_arx_miso(RealT y,
 							::boost::numeric::ublas::vector_expression<UVectorExprT> const& u,
 							RealT lambda,
 							RealT rho,
