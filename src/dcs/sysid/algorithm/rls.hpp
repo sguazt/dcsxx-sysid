@@ -592,7 +592,7 @@ RealT rls_kulhavy1984_arx_miso(RealT y,
 							   ::boost::numeric::ublas::matrix_expression<PMatrixExprT>& P,
 							   ::boost::numeric::ublas::vector_expression<PhiVectorExprT>& phi)
 {
-	return rls_bittanti1990_arx_miso(y, u, lambda, n_a, n_b, d, theta_hat, P, phi, 0);
+	return rls_bittanti1990_arx_miso(y, u, lambda, n_a, n_b, d, theta_hat, P, phi, static_cast<RealT>(0));
 }
 
 
