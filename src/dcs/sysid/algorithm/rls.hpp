@@ -245,7 +245,6 @@ RealT rls_ff_arx_miso(RealT y,
 	{
 		aux_phi = phi;
 	}
-DCS_DEBUG_TRACE("[rarx_miso] aux_phi(k) = " << aux_phi);//XXX
 
 	// Compute the Gain
 	// l(k+1) = \frac{P(k)\phi(k+1)}{\lambda(k)+\phi^T(k+1)P(k)\phi(k+1)}
@@ -266,7 +265,6 @@ DCS_DEBUG_TRACE("[rarx_miso] aux_phi(k) = " << aux_phi);//XXX
 //				aux_phi
 //			)
 //	);
-DCS_DEBUG_TRACE("[rarx_miso] l(k) = " << l);//XXX
 
 	// Update the covariance matrix
 	// P(k+1) = \frac{1}{\lambda(k)}\left[P(k)-l(k+1)\Phi^T(k+1)P(k)\right]
@@ -288,7 +286,6 @@ DCS_DEBUG_TRACE("[rarx_miso] l(k) = " << l);//XXX
 	//   Exponential convergence of a modified directional forgetting identification algorithm.
 	//   Systems & Control Letters, 14:131–137, 1990.
 	//P() = P()+0.01*ublas::identity_matrix<value_type>(n);
-DCS_DEBUG_TRACE("[rarx_miso] P(k) = " << P);//XXX
 
 	// Compute output estimate
 	value_type y_hat = ublas::inner_prod(aux_phi, theta_hat);
@@ -296,7 +293,6 @@ DCS_DEBUG_TRACE("[rarx_miso] P(k) = " << P);//XXX
 	// Update parameters estimate
 	// \hat{\theta}(k+1) = \hat{\theta}(k)+(y(k+1)-\Phi^T(k+1)\hat{\theta}(k))l^T(k+1)
 	theta_hat() = theta_hat + l*(y-y_hat);
-DCS_DEBUG_TRACE("[rarx_miso] theta_hat(k) = " << theta_hat);//XXX
 
 	// Clean-up unused memory
 	aux_phi.resize(0, false);
@@ -468,7 +464,6 @@ RealT rls_bittanti1990_arx_miso(RealT y,
 	{
 		aux_phi = phi;
 	}
-DCS_DEBUG_TRACE("[rarx_miso] aux_phi(k) = " << aux_phi);//XXX
 
 	// Compute output estimate
 	value_type y_hat = ublas::inner_prod(aux_phi, theta_hat);
@@ -485,12 +480,10 @@ DCS_DEBUG_TRACE("[rarx_miso] aux_phi(k) = " << aux_phi);//XXX
 	// Compute the Gain
 	// l(k+1) = \frac{P(k)\phi(k+1)}{1+r(k+1)}
 	work_vector_type l = ublas::prod(P, aux_phi) / (1+r);
-DCS_DEBUG_TRACE("[rarx_miso] l(k) = " << l);//XXX
 
 	// Update parameters estimate
 	// \hat{\theta}(k+1) = \hat{\theta}(k)+(y(k+1)-\Phi^T(k+1)\hat{\theta}(k))l^T(k+1)
 	theta_hat() = theta_hat + l*epsi;
-DCS_DEBUG_TRACE("[rarx_miso] theta_hat(k) = " << theta_hat);//XXX
 
 	// Compute the Directional Forgetting factor
 	// \beta(k+1) = \begin{cases}
@@ -509,7 +502,6 @@ DCS_DEBUG_TRACE("[rarx_miso] theta_hat(k) = " << theta_hat);//XXX
 		// Apply the Bittanti's correction.
 		P() += delta*ublas::identity_matrix<value_type>(n);
 	}
-DCS_DEBUG_TRACE("[rarx_miso] P(k) = " << P);//XXX
 
 	// Clean-up unused memory
 	t.resize(0, false);
@@ -724,7 +716,6 @@ RealT rls_park1991_arx_miso(RealT y,
 	{
 		aux_phi = phi;
 	}
-DCS_DEBUG_TRACE("[rarx_miso] aux_phi(k) = " << aux_phi);//XXX
 
 	// Compute output estimate
 	value_type y_hat = ublas::inner_prod(aux_phi, theta_hat);
@@ -746,16 +737,13 @@ DCS_DEBUG_TRACE("[rarx_miso] aux_phi(k) = " << aux_phi);//XXX
 				aux_phi
 			)
 	);
-DCS_DEBUG_TRACE("[rarx_miso] l(k) = " << l);//XXX
 
 	// Update the covariance matrix
 	P() = (P - ublas::prod(ublas::outer_prod(l, aux_phi), P)) / lambda;
-DCS_DEBUG_TRACE("[rarx_miso] P(k) = " << P);//XXX
 
 	// Update parameters estimate
 	// \hat{\theta}(k+1) = \hat{\theta}(k)+(y(k+1)-\Phi^T(k+1)\hat{\theta}(k))l^T(k+1)
 	theta_hat() = theta_hat + l*epsi;
-DCS_DEBUG_TRACE("[rarx_miso] theta_hat(k) = " << theta_hat);//XXX
 
 	// Clean-up unused memory
 	aux_phi.resize(0, false);
@@ -1110,6 +1098,75 @@ void rls_arx_siso_init(UIntT n_a,
  * \return The predicted value of the outputs.
  *  Furthermore vector \a \theta_hat, matrix \a P and vector \a phi
  *  are changed in order to reflect the current RLS update step.
+ * \param delta A multiplication factor used for applying the
+ *  Bittanti's correction [2]. The correction is applied only for values
+ *  of \a delta greater than zero.
+ *
+ * This variant of the RLS algorithm uses a time-varying forgetting factor and
+ * it is based on [1,2].
+ *
+ * References:
+ * -# R. Kulhavy, M. Karny.
+ *    "Tracking of Slowly Varying Parameters by Directional Forgetting",
+ *    IFAC Proc. Ser. 1985, 687-692.
+ * -# S. Bittanti, P. Bolzern, M. Campi.
+ *    "Exponential Convergence of a Modified Directional Forgetting
+ *     Identification Algorithm",
+ *    Syst. Control Lett. 1990, 14, 131-137.
+ * .
+ */
+template <
+	typename RealT,
+	typename UIntT,
+	typename ThetaVectorExprT,
+	typename PMatrixExprT,
+	typename PhiVectorExprT
+>
+RealT rls_bittanti1990_arx_siso(RealT y,
+								RealT u,
+								RealT lambda,
+								UIntT n_a,
+								UIntT n_b,
+								UIntT d,
+								::boost::numeric::ublas::vector_container<ThetaVectorExprT>& theta_hat,
+								::boost::numeric::ublas::matrix_container<PMatrixExprT>& P,
+								::boost::numeric::ublas::vector_container<PhiVectorExprT>& phi,
+								RealT delta = RealT/*zero*/())
+{
+	return rls_bittanti1990_arx_miso(y,
+									 ::boost::numeric::ublas::scalar_vector<RealT>(1, u),
+									 lambda,
+									 n_a,
+									 n_b,
+									 d,
+									 theta_hat,
+									 P,
+									 phi,
+									 delta);
+}
+
+
+/**
+ * \brief Execute one step of the Recursive Least-Square with forgetting factor
+ *  algorithm for SISO system models with ARX structure.
+ *
+ * \tparam RealT The type for real numbers.
+ * \tparam UIntT The type for unsigned integral numbers.
+ * \tparam VectorT The type for vectors.
+ * \tparam MatrixT The type for matrices.
+ *
+ * \param y The current measurement (output) value.
+ * \param u The current regressor (input) value.
+ * \param lambda The forgetting factor.
+ * \param n_a The memory of the ARX model with respect to the output variables.
+ * \param n_b The memory of the ARX model with respect to the input variables.
+ * \param d The delay of the ARX model.
+ * \param theta_hat The current parameter estimate vector.
+ * \param P Covariance matrix.
+ * \param theta_hat The current regressor vector.
+ * \return The predicted value of the outputs.
+ *  Furthermore vector \a \theta_hat, matrix \a P and vector \a phi
+ *  are changed in order to reflect the current RLS update step.
  */
 template <
 	typename RealT,
@@ -1137,6 +1194,132 @@ RealT rls_ff_arx_siso(RealT y,
 						   theta_hat,
 						   P,
 						   phi);
+}
+
+
+/**
+ * \brief Execute one step of the Recursive Least-Square with forgetting factor
+ *  algorithm for SISO system models with ARX structure.
+ *
+ * \tparam RealT The type for real numbers.
+ * \tparam UIntT The type for unsigned integral numbers.
+ * \tparam VectorT The type for vectors.
+ * \tparam MatrixT The type for matrices.
+ *
+ * \param y The current measurement (output) value.
+ * \param u The current regressor (input) value.
+ * \param lambda The forgetting factor.
+ * \param n_a The memory of the ARX model with respect to the output variables.
+ * \param n_b The memory of the ARX model with respect to the input variables.
+ * \param d The delay of the ARX model.
+ * \param theta_hat The current parameter estimate vector.
+ * \param P Covariance matrix.
+ * \param theta_hat The current regressor vector.
+ * \return The predicted value of the outputs.
+ *  Furthermore vector \a \theta_hat, matrix \a P and vector \a phi
+ *  are changed in order to reflect the current RLS update step.
+ * \param delta A multiplication factor used for applying the
+ *  Bittanti's correction [2]. The correction is applied only for values
+ *  of \a delta greater than zero.
+ *
+ * This variant of the RLS algorithm uses a time-varying forgetting factor and
+ * it is based on [1].
+ *
+ * References:
+ * -# R. Kulhavy, M. Karny.
+ *    "Tracking of Slowly Varying Parameters by Directional Forgetting",
+ *    IFAC Proc. Ser. 1985, 687-692.
+ * .
+ */
+template <
+	typename RealT,
+	typename UIntT,
+	typename ThetaVectorExprT,
+	typename PMatrixExprT,
+	typename PhiVectorExprT
+>
+RealT rls_kulhavy1984_arx_siso(RealT y,
+								RealT u,
+								RealT lambda,
+								UIntT n_a,
+								UIntT n_b,
+								UIntT d,
+								::boost::numeric::ublas::vector_container<ThetaVectorExprT>& theta_hat,
+								::boost::numeric::ublas::matrix_container<PMatrixExprT>& P,
+								::boost::numeric::ublas::vector_container<PhiVectorExprT>& phi)
+{
+	return rls_kulhavy1984_arx_miso(y,
+									::boost::numeric::ublas::scalar_vector<RealT>(1, u),
+									lambda,
+									n_a,
+									n_b,
+									d,
+									theta_hat,
+									P,
+									phi);
+}
+
+
+/**
+ * \brief Execute one step of the Recursive Least-Square with forgetting factor
+ *  algorithm for SISO system models with ARX structure.
+ *
+ * \tparam RealT The type for real numbers.
+ * \tparam UIntT The type for unsigned integral numbers.
+ * \tparam VectorT The type for vectors.
+ * \tparam MatrixT The type for matrices.
+ *
+ * \param y The current measurement (output) value.
+ * \param u The current regressor (input) value.
+ * \param lambda The minimum value for the forgetting factor.
+ * \param rho A design parameter (see [1]).
+ * \param n_a The memory of the ARX model with respect to the output variables.
+ * \param n_b The memory of the ARX model with respect to the input variables.
+ * \param d The delay of the ARX model.
+ * \param theta_hat The current parameter estimate vector.
+ * \param P Covariance matrix.
+ * \param theta_hat The current regressor vector.
+ * \return The predicted value of the outputs.
+ *  Furthermore vector \a \theta_hat, matrix \a P and vector \a phi
+ *  are changed in order to reflect the current RLS update step.
+ *
+ * This variant of the RLS algorithm uses a time-varying forgetting factor and
+ * it is based on [1,2].
+ *
+ * References:
+ * -# D.J. Park, B.E. Jun, J.H. Kim,
+ *    "Fast Tracking RLS Algorithm using Novel Variable Forgetting Factor with Unity Zone",
+ *    Elettron. Lett. 1991, 27, 2150-2151.
+ * .
+ */
+template <
+	typename RealT,
+	typename UIntT,
+	typename ThetaVectorExprT,
+	typename PMatrixExprT,
+	typename PhiVectorExprT
+>
+RealT rls_park1991_arx_siso(RealT y,
+							RealT u,
+							RealT lambda,
+							RealT rho,
+							UIntT n_a,
+							UIntT n_b,
+							UIntT d,
+							::boost::numeric::ublas::vector_container<ThetaVectorExprT>& theta_hat,
+							::boost::numeric::ublas::matrix_container<PMatrixExprT>& P,
+							::boost::numeric::ublas::vector_container<PhiVectorExprT>& phi)
+{
+	return rls_park1991_arx_miso(y,
+								 ::boost::numeric::ublas::scalar_vector<RealT>(1, u),
+								 lambda,
+								 rho,
+								 n_a,
+								 n_b,
+								 d,
+								 theta_hat,
+								 P,
+								 phi);
 }
 
 }} // Namespace dcs::sysid
