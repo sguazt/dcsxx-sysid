@@ -490,7 +490,7 @@ RealT rls_bittanti1990_arx_miso(RealT y,
 	//               \lambda-\frac{1-\lambda}{r(k+1)}, & r(k+1)>0
 	//               1, & r(k+1)=0
 	//              \end{cases}
-	value_type beta = (r > 0) ? (lambda-(1-lambda)/r) : 1;;
+	value_type beta = (r > 0) ? (lambda-(1-lambda)/r) : static_cast<value_type>(1);
 
 	// Update the covariance matrix
 	// P(k+1) = P(k)-\frac{P(k)\phi^T(k+1)\phi(k+1)P(k)}{\beta(k+1)^{-1}+r(k+1)}+\delta I

@@ -3,7 +3,7 @@ addpath(genpath('~/Sys/opt/matlab/ident'));
 addpath(genpath('~/Sys/opt/matlab/control'));
 
 randn("seed",5489)
-u = sign(randn(50,1)); % input
+u = sign(randn(50,2)); % input
 e = 0.2*randn(50,1);   % noise
 %th0 = idpoly([1 -1.5 0.7],[0 1 0.5],[1 -1 0.2]); % a low order idpoly model
 th0 = idpoly([1 -1.5 0.7],[0 1 0.5]); % a low order idpoly model
