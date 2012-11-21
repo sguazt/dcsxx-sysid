@@ -61,7 +61,7 @@
 
 export target := dcsxx-sysid
 export docdir := ./docs
-export srcdir := ./src
+export srcdir := ./inc
 export builddir := ./build
 export testdir := ./test
 export test_srcdir := $(testdir)/src
